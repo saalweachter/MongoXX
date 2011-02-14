@@ -53,7 +53,7 @@ namespace mongoxx {
   template <>
   class BSONDecoder<long long> {
   public:
-    int decode(mongo::BSONObj const& obj, std::string const& field_name) {
+    long long decode(mongo::BSONObj const& obj, std::string const& field_name) {
       if (not obj.hasField(field_name.c_str())) {
 	throw bson_error("Field '" + field_name + "' is not in the BSON object.");
       }
@@ -68,7 +68,7 @@ namespace mongoxx {
   template <>
   class BSONDecoder<bool> {
   public:
-    int decode(mongo::BSONObj const& obj, std::string const& field_name) {
+    bool decode(mongo::BSONObj const& obj, std::string const& field_name) {
       if (not obj.hasField(field_name.c_str())) {
 	throw bson_error("Field '" + field_name + "' is not in the BSON object.");
       }
@@ -83,7 +83,7 @@ namespace mongoxx {
   template <>
   class BSONDecoder<double> {
   public:
-    int decode(mongo::BSONObj const& obj, std::string const& field_name) {
+    double decode(mongo::BSONObj const& obj, std::string const& field_name) {
       if (not obj.hasField(field_name.c_str())) {
 	throw bson_error("Field '" + field_name + "' is not in the BSON object.");
       }

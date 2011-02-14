@@ -261,9 +261,7 @@ TEST(DoubleField_encode_decode) {
 
   Person person2 = mapper.from_bson(bson);
 
-  std::cout << "Weight: " << person2.weight << std::endl;
-
-  CHECK_EQUAL(person1.weight, person2.weight);
+  CHECK_CLOSE(person1.weight, person2.weight, 0.01);
 }
 
 

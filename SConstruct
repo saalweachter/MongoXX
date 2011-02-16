@@ -12,7 +12,10 @@ env.Append(CPPPATH=["third-party/UnitTest++/src"])
 env.Append(LIBPATH=["third-party/UnitTest++"])
 
 
-library_library = env.StaticLibrary("build/mongoxx", Glob("build/*.cc"))
+library_library = env.StaticLibrary("build/mongoxx", Glob("build/*.cc"),
+                                    LIBS=["mongoclient", "boost_system",
+                                          "boost_thread-mt", "boost_filesystem",
+                                          "boost_program_options"])
 library = env.InstallAs("#/install/lib/libmongoxx.a", library_library)
 env.NoClean(library)
 
@@ -34,9 +37,9 @@ testenv.Append(LIBPATH=["/opt/local/lib"])
 
 test = testenv.Program("build-test/bin/TestMongoXX", Glob("build-test/*.cc"),
                        LIBS=["UnitTest++", library,
-                             "mongoclient",
-                             "boost_system", "boost_thread-mt",
-                             "boost_filesystem", "boost_program_options"])
+                             "mongoclient", "boost_system",
+                             "boost_thread-mt", "boost_filesystem",
+                             "boost_program_options"])
 Requires(test, library)
 Requires(test, headers)
 test = testenv.InstallAs("#/TestMongoXX", "build-test/bin/TestMongoXX")

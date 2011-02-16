@@ -12,14 +12,11 @@ env.Append(CPPPATH=["third-party/UnitTest++/src"])
 env.Append(LIBPATH=["third-party/UnitTest++"])
 
 
-library_library = env.StaticLibrary("build/mongoxx", Glob("build/*.cc"),
-                                    LIBS=["mongoclient", "boost_system",
-                                          "boost_thread-mt", "boost_filesystem",
-                                          "boost_program_options"])
+library_library = env.StaticLibrary("build/mongoxx", Glob("build/*.cc"))
 library = env.InstallAs("#/install/lib/libmongoxx.a", library_library)
 env.NoClean(library)
 
-headers = env.Command("headers", [],
+headers = env.Command("headers", Glob("src/*.hh"),
                       [ Mkdir("install"),
                         Mkdir("install/include"),
                         Mkdir("install/include/mongoxx"),
@@ -30,6 +27,15 @@ all = env.Alias("all", [ library, headers ])
 
 
 # The core operation is testing.
+
+# download the UnitTest++ library.
+unittestxx = env.Command("unittestxx", [],
+                         [ Mkdir("third-party"),
+                           "cd third-party && wget 'http://sourceforge.net/projects/unittest-cpp/files/UnitTest%2B%2B/1.4/unittest-cpp-1.4.zip/download'",
+                           "cd third-party && unzip unittest-cpp-1.4.zip",
+                           "cd third-party/UnitTest++ && make all" ])
+
+
 testenv = env.Clone()
 testenv.Append(CPPPATH=["install/include"])
 testenv.Append(LIBPATH=["install/lib/"])
@@ -40,6 +46,7 @@ test = testenv.Program("build-test/bin/TestMongoXX", Glob("build-test/*.cc"),
                              "mongoclient", "boost_system",
                              "boost_thread-mt", "boost_filesystem",
                              "boost_program_options"])
+#Requires(test, unittestxx)
 Requires(test, library)
 Requires(test, headers)
 test = testenv.InstallAs("#/TestMongoXX", "build-test/bin/TestMongoXX")

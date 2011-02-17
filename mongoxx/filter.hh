@@ -78,11 +78,9 @@ namespace mongoxx {
 
     mongo::BSONObj apply(Mapper<T> const* mapper) const {
       mongo::BSONObjBuilder builder;
-      /*
       mongo::BSONObjBuilder builder2;
       builder2.append("$lt", m_value);
       builder.append(m_member.field_name(mapper), builder2.obj());
-      */
       return builder.obj();
     }
 
@@ -106,11 +104,9 @@ namespace mongoxx {
 
     mongo::BSONObj apply(Mapper<T> const* mapper) const {
       mongo::BSONObjBuilder builder;
-      /*
       mongo::BSONObjBuilder builder2;
       builder2.append("$gt", m_value);
       builder.append(m_member.field_name(mapper), builder2.obj());
-      */
       return builder.obj();
     }
 

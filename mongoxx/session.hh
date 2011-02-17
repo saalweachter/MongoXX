@@ -32,18 +32,18 @@ namespace mongoxx {
 
 
     template <typename T>
-    Query<T> query(std::string const& collection, Mapper<T> *mapper) {
+    Query<T> query(std::string const& collection, Mapper<T> const* mapper) {
       return Query<T>(this, collection, mapper);
     }
 
     template <typename T>
-    Inserter<T> inserter(std::string const& collection, Mapper<T> *mapper) {
+    Inserter<T> inserter(std::string const& collection, Mapper<T> const* mapper) {
       return Inserter<T>(this, collection, mapper);
     }
 
     template <typename T>
     QueryResult<T> execute_query(std::string const& collection,
-				 mongo::Query const& query, Mapper<T> *mapper) {
+				 mongo::Query const& query, Mapper<T> const* mapper) {
       return QueryResult<T>(execute_query(collection, query), mapper);
     }
 
@@ -73,7 +73,7 @@ namespace mongoxx {
   template <typename T>
   class Inserter {
   public:
-    Inserter(Session *session, std::string const& collection, Mapper<T> *mapper)
+    Inserter(Session *session, std::string const& collection, Mapper<T> const* mapper)
       : m_session(session), m_collection(collection), m_mapper(mapper) { }
 
     void insert(T const& t) {
@@ -85,7 +85,7 @@ namespace mongoxx {
   private:
     Session *m_session;
     std::string m_collection;
-    Mapper<T> *m_mapper;
+    Mapper<T> const* m_mapper;
   };
 
 };

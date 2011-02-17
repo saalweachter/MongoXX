@@ -43,7 +43,7 @@ namespace mongoxx {
   public:
     virtual ~Filter() { }
 
-    virtual mongo::BSONObj apply(Mapper<T> *mapper) const = 0;
+    virtual mongo::BSONObj apply(Mapper<T> const* mapper) const = 0;
   };
 
   template <template <class T, class U> class Member, typename T, typename U>
@@ -52,7 +52,7 @@ namespace mongoxx {
     MemberEqual(Member<T, U> const& member, U const& value)
       : m_member(member), m_value(value) { }
 
-    mongo::BSONObj apply(Mapper<T> *mapper) const {
+    mongo::BSONObj apply(Mapper<T> const* mapper) const {
       mongo::BSONObjBuilder builder;
       builder.append(m_member.field_name(mapper), m_value);
       return builder.obj();

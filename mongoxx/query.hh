@@ -24,7 +24,7 @@ namespace mongoxx {
   template <typename T>
   class QueryResult {
   public:
-    QueryResult(std::tr1::shared_ptr<mongo::DBClientCursor> const& cursor, Mapper<T> *mapper)
+    QueryResult(std::tr1::shared_ptr<mongo::DBClientCursor> const& cursor, Mapper<T> const* mapper)
       : m_cursor(cursor), m_mapper(mapper) { }
 
     T first() const {
@@ -70,13 +70,13 @@ namespace mongoxx {
 
   private:
     std::tr1::shared_ptr<mongo::DBClientCursor> m_cursor;
-    Mapper<T> *m_mapper;
+    Mapper<T> const* m_mapper;
   };
 
   template <typename T>
   class Query {
   public:
-    Query(Session *session, std::string const& collection, Mapper<T> *mapper)
+    Query(Session *session, std::string const& collection, Mapper<T> const* mapper)
       : m_session(session), m_collection(collection), m_mapper(mapper) { }
 
     QueryResult<T> result() const {
@@ -111,7 +111,7 @@ namespace mongoxx {
   private:
     Session *m_session;
     std::string m_collection;
-    Mapper<T> *m_mapper;
+    Mapper<T> const* m_mapper;
     mutable mongo::BSONObj m_filters;
 
     mongo::Query query() const {

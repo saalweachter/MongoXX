@@ -1,10 +1,7 @@
 .sconsign.dblite
 *~
 
-build/
 build-test/
-
-install/
 third-party/
 
 TestMongoXX

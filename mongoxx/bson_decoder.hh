@@ -51,6 +51,21 @@ namespace mongoxx {
   };
 
   template <>
+  class BSONDecoder<unsigned int> {
+  public:
+    unsigned int decode(mongo::BSONObj const& obj, std::string const& field_name) {
+      if (not obj.hasField(field_name.c_str())) {
+	throw bson_error("Field '" + field_name + "' is not in the BSON object.");
+      }
+      mongo::BSONElement element = obj.getField(field_name);
+      if (element.type() != mongo::NumberInt) {
+	throw bson_error("Field '" + field_name + "' is not of int type.");
+      }
+      return element.Int();
+    }
+  };
+
+  template <>
   class BSONDecoder<long long> {
   public:
     long long decode(mongo::BSONObj const& obj, std::string const& field_name) {

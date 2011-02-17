@@ -21,8 +21,15 @@ namespace mongoxx {
 
   class Session {
   public:
-    Session(std::string const& host);
-    ~Session();
+    Session(std::string const& host) : m_host(host), m_connection(host) { }
+    ~Session() {
+      // ScopedDbConnection prints a warning message when it goes out of scope
+      // if you do not call .done().
+      // I'm sure there's a very good reason for this, I just can't conceive of
+      // it.
+      m_connection.done();
+    }
+
 
     template <typename T>
     Query<T> query(std::string const& collection, Mapper<T> *mapper) {
@@ -40,11 +47,22 @@ namespace mongoxx {
       return QueryResult<T>(execute_query(collection, query), mapper);
     }
 
-    void insert(std::string const& collection, mongo::BSONObj const& object);
-    void remove_all(std::string const& collection, mongo::Query const& query);
-    void remove_one(std::string const& collection, mongo::Query const& query);
+    void insert(std::string const& collection, mongo::BSONObj const& object) {
+      m_connection->insert(collection, object);
+    }
+
+    void remove_all(std::string const& collection, mongo::Query const& query) {
+      m_connection->remove(collection, query, false);
+    }
+
+    void remove_one(std::string const& collection, mongo::Query const& query) {
+      m_connection->remove(collection, query, true);
+    }
+
     std::tr1::shared_ptr<mongo::DBClientCursor>
-    execute_query(std::string const& collection, mongo::Query const& query);
+    execute_query(std::string const& collection, mongo::Query const& query) {
+      return std::tr1::shared_ptr<mongo::DBClientCursor>(m_connection->query(collection, query).release());
+    }
  
   private:
     std::string m_host;

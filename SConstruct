@@ -8,25 +8,14 @@ env = Environment(ENV={'PATH' : os.environ['PATH']})
 
 env.Append(CCFLAGS=["-Wall", "-Werror"])
 env.Append(CPPPATH=["/opt/local/include"])
+env.Append(CPPPATH=["."])
+env.Append(LIBPATH=["/opt/local/lib"])
 env.Append(CPPPATH=["third-party/UnitTest++/src"])
 env.Append(LIBPATH=["third-party/UnitTest++"])
 
 
-library_library = env.StaticLibrary("build/mongoxx", Glob("build/*.cc"))
-library = env.InstallAs("#/install/lib/libmongoxx.a", library_library)
-env.NoClean(library)
-
-headers = env.Command("headers", Glob("src/*.hh"),
-                      [ Mkdir("install"),
-                        Mkdir("install/include"),
-                        Mkdir("install/include/mongoxx"),
-                        "cp src/*.hh install/include/mongoxx/" ])
-env.Alias("library", library)
-env.Alias("headers", headers)
-all = env.Alias("all", [ library, headers ])
-
-
-# The core operation is testing.
+# mongoxx is header-only.
+# the only operation here is testing.
 
 # download the UnitTest++ library.
 unittestxx = env.Command("unittestxx", [],
@@ -36,24 +25,18 @@ unittestxx = env.Command("unittestxx", [],
                            "cd third-party/UnitTest++ && make all" ])
 
 
-testenv = env.Clone()
-testenv.Append(CPPPATH=["install/include"])
-testenv.Append(LIBPATH=["install/lib/"])
-testenv.Append(LIBPATH=["/opt/local/lib"])
 
-test = testenv.Program("build-test/bin/TestMongoXX", Glob("build-test/*.cc"),
-                       LIBS=["UnitTest++", library,
-                             "mongoclient", "boost_system",
-                             "boost_thread-mt", "boost_filesystem",
-                             "boost_program_options"])
+test = env.Program("build-test/bin/TestMongoXX", Glob("build-test/*.cc"),
+                   LIBS=["UnitTest++",
+                         "mongoclient", "boost_system",
+                         "boost_thread-mt", "boost_filesystem",
+                         "boost_program_options"])
 #Requires(test, unittestxx)
-Requires(test, library)
-Requires(test, headers)
-test = testenv.InstallAs("#/TestMongoXX", "build-test/bin/TestMongoXX")
-testenv.NoClean(test)
-testenv.Alias("Test", test)
-test = testenv.Command("run-tests", test, "./TestMongoXX")
-testenv.Alias("test", test)
+test = env.InstallAs("#/TestMongoXX", "build-test/bin/TestMongoXX")
+env.NoClean(test)
+env.Alias("Test", test)
+test = env.Command("run-tests", test, "./TestMongoXX")
+env.Alias("test", test)
 Default(test)
 
 

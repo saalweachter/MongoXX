@@ -16,6 +16,7 @@
 #include "mapper.hh"
 #include "filter.hh"
 #include "query.hh"
+#include "table.hh"
 #include "session.hh"
 
 namespace mongoxx {

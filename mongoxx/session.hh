@@ -18,6 +18,7 @@ namespace mongoxx {
   template <typename T> class Inserter;
   template <typename T> class Query;
   template <typename T> class QueryResult;
+  template <typename T> class Table;
 
   class Session {
   public:
@@ -37,8 +38,18 @@ namespace mongoxx {
     }
 
     template <typename T>
+    Query<T> query(Table<T> const& table) {
+      return Query<T>(this, table.collection(), table.mapper());
+    }
+
+    template <typename T>
     Inserter<T> inserter(std::string const& collection, Mapper<T> const* mapper) {
       return Inserter<T>(this, collection, mapper);
+    }
+
+    template <typename T>
+    Inserter<T> inserter(Table<T> const& table) {
+      return Inserter<T>(this, table.collection(), table.mapper());
     }
 
     template <typename T>

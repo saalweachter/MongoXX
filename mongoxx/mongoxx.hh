@@ -14,6 +14,7 @@
 
 #include "bson_decoder.hh"
 #include "mapper.hh"
+#include "filter.hh"
 #include "query.hh"
 #include "session.hh"
 

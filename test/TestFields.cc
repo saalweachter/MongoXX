@@ -38,6 +38,24 @@ TEST(BasicTest_1) {
 }
 
 
+TEST(Mapper_name_lookup_1) {
+  Mapper<Person> mapper;
+  mapper.add_field("first_name", &Person::first_name);
+  mapper.add_field("last_name", &Person::last_name);
+  mapper.add_field("age", &Person::age);
+  mapper.add_field("alive", &Person::alive);
+  mapper.add_field("weight", &Person::weight);
+
+  CHECK_EQUAL("first_name", mapper.lookup_field(&Person::first_name));
+  CHECK_EQUAL("last_name", mapper.lookup_field(&Person::last_name));
+  CHECK_EQUAL("age", mapper.lookup_field(&Person::age));
+  CHECK_EQUAL("alive", mapper.lookup_field(&Person::alive));
+  CHECK_EQUAL("weight", mapper.lookup_field(&Person::weight));
+
+  CHECK_THROW(mapper.lookup_field(&Person::random_long), std::invalid_argument);
+}
+
+
 TEST(StringField_encode_decode) {
   // This tests string field encoding/decoding with no exceptions.
   Mapper<Person> mapper;

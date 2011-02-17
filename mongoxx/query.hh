@@ -103,15 +103,49 @@ namespace mongoxx {
       m_session->remove_one(m_collection, query());
     }
 
+    Query const& filter(Filter<T> const& by) const {
+      m_filters = merge(m_filters, by.apply(m_mapper));
+      return *this;
+    }
+
   private:
     Session *m_session;
     std::string m_collection;
     Mapper<T> *m_mapper;
+    mutable mongo::BSONObj m_filters;
 
     mongo::Query query() const {
-      mongo::BSONObj obj;
-      mongo::Query query(obj);
+      mongo::Query query(m_filters);
       return query;
+    }
+
+    static mongo::BSONObj merge(mongo::BSONObj const& a, mongo::BSONObj const& b) {
+      std::set<std::string> fields;
+
+      a.getFieldNames(fields);
+      b.getFieldNames(fields);
+
+      mongo::BSONObjBuilder builder;
+      for (std::set<std::string>::const_iterator i = fields.begin(); i != fields.end(); ++i) {
+	if (a.hasField(i->c_str()) and b.hasField(i->c_str())) {
+	  // In both!
+	  mongo::BSONElement a_elem = a.getField(*i);
+	  mongo::BSONElement b_elem = b.getField(*i);
+	  if (a_elem.type() != mongo::Object or a_elem.type() != mongo::Object)
+	    throw invalid_argument("Multiple equality filters applied to the same field.");
+	  mongo::BSONObjBuilder builder2;
+	  builder2.appendElements(a_elem.Obj());
+	  builder2.appendElements(b_elem.Obj());
+	  builder.append(i->c_str(), builder2.obj());
+	} else if (a.hasField(i->c_str())) {
+	  // In a.
+	  builder.append(a.getField(*i));
+	} else {
+	  // In b.
+	  builder.append(b.getField(*i));
+	}
+      }
+      return builder.obj();
     }
 
   };

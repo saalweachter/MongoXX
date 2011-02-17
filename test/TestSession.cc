@@ -12,6 +12,7 @@
 
 using namespace mongoxx;
 
+
 TEST(Session_connect) {
   Session session("localhost");
 }

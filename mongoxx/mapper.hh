@@ -52,6 +52,35 @@ namespace mongoxx {
       return *this;
     }
 
+    template <typename U>
+    Mapper& add_field(std::string const& name,
+		      U (T::*getter)(), void (T::*setter)(U const&)) {
+      m_fields.push_back(new IndirectField<U>(name, getter, setter));
+      return *this;
+    }
+
+    template <typename U>
+    std::string const& lookup_field(U T::*field) const {
+      for (typename std::vector<Field*>::const_iterator i = m_fields.begin(); i != m_fields.end(); ++i) {
+	if (DirectField<U> const* f = dynamic_cast<DirectField<U> const*>(*i)) {
+	  if (f->field() == field)
+	    return f->name();
+	}
+      }
+      throw std::invalid_argument("Attempted to lookup an unmapped field.");
+    }
+
+    template <typename U>
+    std::string const& lookup_field(U (T::*getter)()) const {
+      for (typename std::vector<Field*>::const_iterator i = m_fields.begin(); i != m_fields.end(); ++i) {
+	if (IndirectField<U> const* f = dynamic_cast<IndirectField<U> const*>(*i)) {
+	  if (f->getter() == getter)
+	    return f->name();
+	} 
+      }
+      throw std::invalid_argument("Attempted to lookup an unmapped getter.");
+    }
+
     std::string to_json(T const& t) const {
       return to_bson(t).jsonString();
     }
@@ -119,6 +148,35 @@ namespace mongoxx {
     private:
       U T::*m_field;
     };
+
+    template <typename U>
+    class IndirectField : public Field {
+    public:
+      typedef U (T::*GETTER)();
+      typedef void (T::*SETTER)(U const&);
+
+      IndirectField(std::string const& name, GETTER getter, SETTER setter)
+	: Field(name), m_getter(getter), m_setter(setter) { }
+
+      Field* clone() const {
+	return new IndirectField(this->name(), getter(), setter());
+      }
+
+      GETTER getter() const { return m_getter; }
+      SETTER setter() const { return m_setter; }
+      void to_bson(T const& t, mongo::BSONObjBuilder &builder) const {
+	builder.append(this->name(), (t.*m_getter));
+      }
+      void from_bson(mongo::BSONObj const &bson, T &t) const {
+	BSONDecoder<U> decoder;
+	(t.*m_setter)(decoder.decode(bson, this->name()));
+      }
+
+    private:
+      GETTER m_getter;
+      SETTER m_setter;
+    };
+
 
     std::vector<Field*> m_fields;
   };

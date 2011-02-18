@@ -22,77 +22,97 @@ namespace mongoxx {
 
   
   template <typename T>
-  T _decode(mongo::BSONElement const& element,
-		  mongo::BSONType type, std::string const& type_name,
-		  T (mongo::BSONElement::*result)() const) {
+  void _decode(T &t, mongo::BSONElement const& element,
+	       mongo::BSONType type, std::string const& type_name,
+	       T (mongo::BSONElement::*result)() const) {
     if (element.type() != type) {
       throw bson_error("BSONElement is not of " + type_name + " type.");
     }
-    return (element.*result)();
+    t = (element.*result)();
   }
 
 
   template <typename T>
-  class BSONElementDecoder;
+  class BSONDecoderBackend;
 
   template <>
-  class BSONElementDecoder<std::string> {
+  class BSONDecoderBackend<std::string> {
   public:
-    std::string decode(mongo::BSONElement const& elem) {
-      return _decode(elem, mongo::String, "string", &mongo::BSONElement::str);
+    static void decode(std::string &s, mongo::BSONElement const& elem) {
+      _decode(s, elem, mongo::String, "string", &mongo::BSONElement::str);
     }
   };
 
   template <>
-  class BSONElementDecoder<int> {
+  class BSONDecoderBackend<int> {
   public:
-    int decode(mongo::BSONElement const& elem) {
-      return _decode(elem, mongo::NumberInt, "int", &mongo::BSONElement::Int);
+    static void decode(int &i, mongo::BSONElement const& elem) {
+      _decode(i, elem, mongo::NumberInt, "int", &mongo::BSONElement::Int);
     }
   };
 
   template <>
-  class BSONElementDecoder<unsigned int> {
+  class BSONDecoderBackend<unsigned int> {
   public:
-    unsigned int decode(mongo::BSONElement const& elem) {
-      return _decode(elem, mongo::NumberInt, "int", &mongo::BSONElement::Int);
+    static void decode(unsigned int &ui, mongo::BSONElement const& elem) {
+      int i = 0;
+      _decode(i, elem, mongo::NumberInt, "int", &mongo::BSONElement::Int);
+      ui = i;
     }
   };
 
   template <>
-  class BSONElementDecoder<long long> {
+  class BSONDecoderBackend<long long> {
   public:
-    long long decode(mongo::BSONElement const& e) {
-      return _decode(e, mongo::NumberLong, "long", &mongo::BSONElement::Long);
+    static void decode(long long &l, mongo::BSONElement const& e) {
+      _decode(l, e, mongo::NumberLong, "long", &mongo::BSONElement::Long);
     }
   };
 
   template <>
-  class BSONElementDecoder<bool> {
+  class BSONDecoderBackend<bool> {
   public:
-    bool decode(mongo::BSONElement const& elem) {
-      return _decode(elem, mongo::Bool, "boolean", &mongo::BSONElement::Bool);
+    static void decode(bool &b, mongo::BSONElement const& elem) {
+      _decode(b, elem, mongo::Bool, "boolean", &mongo::BSONElement::Bool);
     }
   };
 
   template <>
-  class BSONElementDecoder<double> {
+  class BSONDecoderBackend<double> {
   public:
-    double decode(mongo::BSONElement const& e) {
-      return _decode(e, mongo::NumberDouble, "double", &mongo::BSONElement::Double);
+    static void decode(double &d, mongo::BSONElement const& e) {
+      _decode(d, e, mongo::NumberDouble, "double", &mongo::BSONElement::Double);
     }
   };
 
 
   template <typename T>
-  class BSONObjectDecoder {
+  class BSONDecoder {
   public:
-    T decode(mongo::BSONObj const& obj, std::string const& field_name) {
+    static T decode_field(mongo::BSONObj const& obj,
+			  std::string const& field_name) {
+      T t;
+      decode_field(t, obj, field_name);
+      return t;
+    }
+
+    static void decode_field(T &t, mongo::BSONObj const& obj,
+			     std::string const& field_name) {
       if (not obj.hasField(field_name.c_str())) {
 	throw bson_error("Field '" + field_name + "' is not in the BSON object.");
       }
       mongo::BSONElement element = obj.getField(field_name);
-      return BSONElementDecoder<T>().decode(element);
+      decode_element(t, element);
+    }
+
+    static T decode_element(mongo::BSONElement const& element) {
+      T t;
+      decode_element(t, element);
+      return t;
+    }
+
+    static void decode_element(T &t, mongo::BSONElement const element) {
+      BSONDecoderBackend<T>::decode(t, element);
     }
   };
 

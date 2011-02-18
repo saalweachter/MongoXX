@@ -141,7 +141,7 @@ namespace mongoxx {
 	builder.append(this->name(), t.*m_field);
       }
       void from_bson(mongo::BSONObj const &bson, T &t) const {
-	BSONDecoder<U> decoder;
+	BSONObjectDecoder<U> decoder;
 	t.*m_field = decoder.decode(bson, this->name());
       }
 
@@ -168,7 +168,7 @@ namespace mongoxx {
 	builder.append(this->name(), (t.*m_getter));
       }
       void from_bson(mongo::BSONObj const &bson, T &t) const {
-	BSONDecoder<U> decoder;
+	BSONObjectDecoder<U> decoder;
 	(t.*m_setter)(decoder.decode(bson, this->name()));
       }
 

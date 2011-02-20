@@ -87,10 +87,11 @@ namespace mongoxx {
     Inserter(Session *session, std::string const& collection, Mapper<T> const* mapper)
       : m_session(session), m_collection(collection), m_mapper(mapper) { }
 
-    void insert(T const& t) {
+    Inserter& insert(T const& t) {
       mongo::BSONObj object;
       m_mapper->to_bson(t, object);
       m_session->insert(m_collection, object);
+      return *this;
     }
 
   private:

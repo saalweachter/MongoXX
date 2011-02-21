@@ -54,8 +54,15 @@ namespace mongoxx {
 
     template <typename U>
     Mapper& add_field(std::string const& name,
-		      U (T::*getter)(), void (T::*setter)(U const&)) {
+		      U const& (T::*getter)() const, void (T::*setter)(U const&)) {
       m_fields.push_back(new IndirectField<U>(name, getter, setter));
+      return *this;
+    }
+
+    template <typename U>
+    Mapper& add_field(std::string const& name,
+		      U (T::*getter)() const, void (T::*setter)(U)) {
+      m_fields.push_back(new IndirectField2<U>(name, getter, setter));
       return *this;
     }
 
@@ -71,7 +78,7 @@ namespace mongoxx {
     }
 
     template <typename U>
-    std::string const& lookup_field(U (T::*getter)()) const {
+    std::string const& lookup_field(U const& (T::*getter)()) const {
       for (typename std::vector<Field*>::const_iterator i = m_fields.begin(); i != m_fields.end(); ++i) {
 	if (IndirectField<U> const* f = dynamic_cast<IndirectField<U> const*>(*i)) {
 	  if (f->getter() == getter)
@@ -151,7 +158,7 @@ namespace mongoxx {
     template <typename U>
     class IndirectField : public Field {
     public:
-      typedef U (T::*GETTER)();
+      typedef U const& (T::*GETTER)() const;
       typedef void (T::*SETTER)(U const&);
 
       IndirectField(std::string const& name, GETTER getter, SETTER setter)
@@ -164,7 +171,34 @@ namespace mongoxx {
       GETTER getter() const { return m_getter; }
       SETTER setter() const { return m_setter; }
       void to_bson(T const& t, mongo::BSONObjBuilder &builder) const {
-	builder.append(this->name(), (t.*m_getter));
+	builder.append(this->name(), (t.*m_getter)());
+      }
+      void from_bson(mongo::BSONObj const &bson, T &t) const {
+	(t.*m_setter)(decode_field<U>(bson, this->name()));
+      }
+
+    private:
+      GETTER m_getter;
+      SETTER m_setter;
+    };
+
+    template <typename U>
+    class IndirectField2 : public Field {
+    public:
+      typedef U (T::*GETTER)() const;
+      typedef void (T::*SETTER)(U);
+
+      IndirectField2(std::string const& name, GETTER getter, SETTER setter)
+	: Field(name), m_getter(getter), m_setter(setter) { }
+
+      Field* clone() const {
+	return new IndirectField2(this->name(), getter(), setter());
+      }
+
+      GETTER getter() const { return m_getter; }
+      SETTER setter() const { return m_setter; }
+      void to_bson(T const& t, mongo::BSONObjBuilder &builder) const {
+	builder.append(this->name(), (t.*m_getter)());
       }
       void from_bson(mongo::BSONObj const &bson, T &t) const {
 	(t.*m_setter)(decode_field<U>(bson, this->name()));

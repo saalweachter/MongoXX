@@ -327,3 +327,96 @@ TEST(DoubleField_mistyped_field_2) {
 }
 
 
+struct Student {
+  std::string first_name;
+  std::string last_name;
+  std::vector<int> grades;
+};
+
+TEST(VectorIntField_standard) {
+  Mapper<Student> mapper;
+  mapper.add_field("first_name", &Student::first_name);
+  mapper.add_field("last_name", &Student::last_name);
+  mapper.add_field("grades", &Student::grades);
+
+  Student student1;
+  student1.first_name = "Jack";
+  student1.last_name = "Saalweachter";
+  student1.grades.push_back(100);
+  student1.grades.push_back(90);
+  student1.grades.push_back(80);
+  student1.grades.push_back(70);
+
+  mongo::BSONObj bson = mapper.to_bson(student1);
+  CHECK_EQUAL("{ \"first_name\" : \"Jack\", \"last_name\" : \"Saalweachter\", \"grades\" : [ 100, 90, 80, 70 ] }", bson.jsonString());
+
+  Student student2 = mapper.from_bson(bson);
+
+  CHECK_EQUAL(student1.first_name, student2.first_name);
+  CHECK_EQUAL(student1.last_name, student2.last_name);
+  CHECK_EQUAL(student1.grades.size(), student2.grades.size());
+  CHECK_EQUAL(student1.grades[0], student2.grades[0]);
+  CHECK_EQUAL(student1.grades[1], student2.grades[1]);
+  CHECK_EQUAL(student1.grades[2], student2.grades[2]);
+  CHECK_EQUAL(student1.grades[3], student2.grades[3]);
+
+}
+
+
+struct Student2 {
+  std::string first_name;
+  std::string last_name;
+  std::vector<double> grades;
+};
+
+TEST(VectorIntField_field_mismatch_1) {
+  Mapper<Student> mapper1;
+  mapper1.add_field("first_name", &Student::first_name);
+  mapper1.add_field("last_name", &Student::last_name);
+  mapper1.add_field("grades", &Student::grades);
+
+  Student student1;
+  student1.first_name = "Jack";
+  student1.last_name = "Saalweachter";
+  student1.grades.push_back(100);
+  student1.grades.push_back(90);
+  student1.grades.push_back(80);
+  student1.grades.push_back(70);
+
+  mongo::BSONObj bson = mapper1.to_bson(student1);
+
+  Mapper<Student2> mapper2;
+  mapper2.add_field("first_name", &Student2::first_name);
+  mapper2.add_field("last_name", &Student2::last_name);
+  mapper2.add_field("grades", &Student2::grades);
+
+  CHECK_THROW(mapper2.from_bson(bson), bson_error);
+
+}
+
+
+TEST(VectorIntField_field_mismatch_2) {
+  Mapper<Student2> mapper1;
+  mapper1.add_field("first_name", &Student2::first_name);
+  mapper1.add_field("last_name", &Student2::last_name);
+  mapper1.add_field("grades", &Student2::grades);
+
+  Student2 student1;
+  student1.first_name = "Jack";
+  student1.last_name = "Saalweachter";
+  student1.grades.push_back(100.5);
+  student1.grades.push_back(90.5);
+  student1.grades.push_back(80.5);
+  student1.grades.push_back(70.5);
+
+  mongo::BSONObj bson = mapper1.to_bson(student1);
+
+  Mapper<Student> mapper2;
+  mapper2.add_field("first_name", &Student::first_name);
+  mapper2.add_field("last_name", &Student::last_name);
+  mapper2.add_field("grades", &Student::grades);
+
+  CHECK_THROW(mapper2.from_bson(bson), bson_error);
+
+}
+

@@ -1,4 +1,4 @@
-Mongo++ is a library for using a Mongo database from C++.
+Mongo++ is a library for using a Mongo database from C++.  It is open sourced under the MIT license; see the LICENSE file for details.
 
 First things first, a quick getting started:
 

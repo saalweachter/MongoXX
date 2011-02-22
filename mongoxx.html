@@ -1,0 +1,122 @@
+<html>
+<head>
+<title>Mongo++ Documentation</title>
+</head>
+
+<body style="margin-right: 10%; margin-left: 10%; text-align: justify;
+line-height: 1.2em;">
+<h1>Mongo++</h1>
+Mongo++ is a C++ library for accessing a Mongo database.
+
+<hr>
+
+<h2><code>mongoxx::Mapper&lt;T&gt;</code></h2>
+<code>Mapper&lt;T&gt;</code> provides the interface to map between your local
+classes and BSON objects.  As a user, you will care about the
+following methods:
+<blockquote>
+<dl>
+  <dt style="text-align: left">
+    <code>template &lt;typename U&gt; Mapper&
+    add_field(<nobr>std::string const& name,</nobr> <nobr>U T::*field);</nobr></code>
+  </dt>
+  <dd>
+    All <code>add_field</code> methods are used to add a field of our
+    target class, <code>T</code>, to the mapper.  The field of the offer
+    will be written to and read from a field named <code>name</code> in
+    the BSON object.
+  </dd>
+  <br/>
+  <dt style="text-align: left">
+    <code>template &lt;typename U&gt; Mapper& add_field(<nobr>std::string const&
+    name,</nobr> <nobr>U (T::*getter)() const,</nobr> <nobr>void (T::*setter)(U));</nobr></code>
+  </dt>
+  <dd>
+    This version of the <code>add_field</code> method is used to add a
+    field which is accessible through a getter and setter member
+    function.
+  </dd>
+  <br/>
+  <dt style="text-align: left">
+    <code>template &lt;typename U&gt; Mapper&
+    add_field(<nobr>std::string const& name,</nobr> <nobr>U const& (T::*getter)() const,</nobr> <nobr>void (T::*setter)(U const&));</nobr></code>
+  </dt>
+  <dd>
+    This version of the <code>add_field</code> method is used to add a
+    field which is accessible through a getter and setter member function, and when
+    the type of the field is a non-primitive type being passed as a
+    const reference.
+  </dd>
+</dl>
+</blockquote>
+
+<h2><code>mongoxx::Table&lt;T&gt;</code></h2>
+A <code>Table&lt;T&gt;</code> is a <code>Mapper&lt;T&gt;</code> plus a
+collection name (or namespace).  Generally, you will just construct a
+<code>Table&lt;T&gt;</code> and then pass it to other classes'
+functions.
+<blockquote>
+<dl>
+  <dt style="text-align: left">
+    <code>Table(<nobr>std::string const& collection,</nobr> <nobr>Mapper&lt;T&gt; const& mapper);</nobr></code>
+  </dt>
+  <dd>
+    Basic constructor.
+  </dd>
+  <br/>
+  <dt style="text-align: left">
+    <code>Table(std::string const& collection);</code>
+  </dt>
+  <dd>
+    When this constructor is used, you'll need to call the
+    <code>add_field</code> methods on the Table&lt;T&gt; object.
+  </dd>
+  <br/>
+  <dt style="text-align: left">
+    <code>template &lt;typename U&gt; Field&lt;T, U&gt; operator[](U
+    T::*member) const;</code>
+  </dt>
+  <dd>
+    The <code>operator []</code> operator is a convenience function
+    for accessing the field() function.  It allows you to refer to
+    mapped fields as <code>table[&Class::member]</code> in filters and
+    update expressions.
+  </dd>
+  <br/>
+  <dt style="text-align: left">
+    <code>template &lt;typename U&gt; Table& add_field(std::string
+    const& name, U T::*field);</code>
+  </dt>
+  <dd>
+    Calls the <code>add_field</code> method on the underlying
+    <code>Mapper&lt;T&gt;</code>.
+  </dd>
+  <br/>
+  <dt style="text-align: left">
+    <code>template &lt;typename U&gt; Table& add_field(<nobr>std::string
+    const& name</nobr>, <nobr>U (T::*getter)()</nobr>, <nobr>void (T::*setter)(U));</nobr></code>
+  </dt>
+  <dd>
+    Calls the <code>add_field</code> method on the underlying
+    <code>Mapper&lt;T&gt;</code>.
+  </dd>
+</dl>
+</blockquote>
+
+<h2><code>mongoxx::Session</code></h2>
+Session maintains the database connection and provides the entry
+functions to most of the library.
+<blockquote>
+<dl>
+  <dt style="text-align: left">
+    <code>template &lt;typename T&gt; Query&lt;T&gt; query(<nobr>std::string const& collection,</nobr> <nobr>Mapper&lt;T&gt; const* mapper);</nobr></code>
+  </dt>
+  <dt style="text-align: left">
+    <code>template &lt;typename T&gt; Query&lt;T&gt; query(Table&lt;T&gt; const& table);</code>
+  </dt>
+  <dd>
+  </dd>
+</dl>
+</blockquote>
+
+</body> </html>

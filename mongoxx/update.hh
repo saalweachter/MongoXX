@@ -20,7 +20,7 @@ namespace mongoxx {
   };
 
   template <template <class T, class U> class Member, typename T, typename U>
-  class MemberIncrement : public Field<T> {
+  class MemberIncrement : public Update<T> {
   public:
     MemberIncrement(Member<T, U> const& member, U const& value)
       : m_member(member), m_value(value) { }

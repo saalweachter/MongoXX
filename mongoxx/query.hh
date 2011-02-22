@@ -8,6 +8,8 @@
 
 #include "mapper.hh"
 #include "session.hh"
+#include "filter.hh"
+#include "update.hh"
 
 #include <string>
 #include <stdexcept>
@@ -108,6 +110,10 @@ namespace mongoxx {
     Query filter(Filter<T> const& by) const {
       return Query(m_session, m_collection, m_mapper,
 		   merge(m_filters, by.apply(m_mapper)), m_limit, m_skip);
+    }
+
+    void update(Update<T> const& update) const {
+      return m_session->execute_update(m_collection, m_filters, update.apply(m_mapper));
     }
 
     Query skip(unsigned int N) const {

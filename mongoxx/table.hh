@@ -33,7 +33,7 @@ namespace mongoxx {
 
     template <typename U>
     Table& add_field(std::string const& name,
-		      U (T::*getter)(), void (T::*setter)(U const&)) {
+		      U (T::*getter)(), void (T::*setter)(U)) {
       m_mapper.add_field(name, getter, setter);
       return *this;
     }

@@ -6,7 +6,7 @@
 #ifndef MONGOXX_TABLE_HH
 #define MONOGXX_TABLE_HH
 
-#include "filter.hh"
+#include "field.hh"
 #include "mapper.hh"
 
 namespace mongoxx {

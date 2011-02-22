@@ -77,6 +77,10 @@ namespace mongoxx {
     execute_query(std::string const& collection, mongo::Query const& query, unsigned int limit, unsigned int skip) {
       return std::tr1::shared_ptr<mongo::DBClientCursor>(m_connection->query(collection, query, limit, skip).release());
     }
+
+    void execute_query(std::string const& collection, mongo::Query const& query, mongo::BSONObj const& update) {
+      m_connection->update(collection, query, update);
+    }
  
   private:
     std::string m_host;

@@ -77,18 +77,20 @@ namespace mongoxx {
   class Query {
   public:
     Query(Session *session, std::string const& collection, Mapper<T> const* mapper)
-      : m_session(session), m_collection(collection), m_mapper(mapper) { }
+      : m_session(session), m_collection(collection), m_mapper(mapper),
+	m_limit(0), m_skip(0) { }
 
     QueryResult<T> result() const {
-      return m_session->execute_query(m_collection, query(), m_mapper);
+      return m_session->execute_query(m_collection, query(), m_limit, m_skip,
+				      m_mapper);
     }
 
     T first() const {
-      return result().first();
+      return limit(1).result().first();
     }
 
     T one() const {
-      return result().one();
+      return limit(1).result().one();
     }
 
     std::vector<T> all() const {
@@ -103,16 +105,31 @@ namespace mongoxx {
       m_session->remove_one(m_collection, query());
     }
 
-    Query const& filter(Filter<T> const& by) const {
-      m_filters = merge(m_filters, by.apply(m_mapper));
-      return *this;
+    Query filter(Filter<T> const& by) const {
+      return Query(m_session, m_collection, m_mapper,
+		   merge(m_filters, by.apply(m_mapper)), m_limit, m_skip);
+    }
+
+    Query skip(unsigned int N) const {
+      return Query(m_session, m_collection, m_mapper, m_filters, m_limit, N);
+    }
+
+    Query limit(unsigned int N) const {
+      return Query(m_session, m_collection, m_mapper, m_filters, N, m_skip);
     }
 
   private:
+    Query(Session *session, std::string const& collection, Mapper<T> const* mapper,
+	  mongo::BSONObj const& filters, unsigned int limit, unsigned int skip)
+      : m_session(session), m_collection(collection), m_mapper(mapper),
+	m_filters(filters), m_limit(limit), m_skip(skip) { }
+
     Session *m_session;
     std::string m_collection;
     Mapper<T> const* m_mapper;
-    mutable mongo::BSONObj m_filters;
+    mongo::BSONObj m_filters;
+    unsigned int m_limit;
+    unsigned int m_skip;
 
     mongo::Query query() const {
       mongo::Query query(m_filters);

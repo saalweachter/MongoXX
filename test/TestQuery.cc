@@ -163,3 +163,71 @@ TEST(Query_filter_greater_than) {
 }
 
 
+TEST(Query_limit) {
+  Session session("localhost");
+
+  Table<PersonQ> table("test.query_limit");
+  table.add_field("first_name", &PersonQ::first_name);
+  table.add_field("last_name", &PersonQ::last_name);
+  table.add_field("age", &PersonQ::age);
+
+  session.query(table).remove_all();
+
+  Inserter<PersonQ> inserter = session.inserter(table);
+
+  PersonQ person1 = { "Jack", "Saalweachter", 25 };
+  inserter.insert(person1);
+
+  PersonQ person2 = { "John", "Saalweachter", 26 };
+  inserter.insert(person2);
+
+  PersonQ person3 = { "Jack", "Saalwaechter", 27 };
+  inserter.insert(person3);
+
+  PersonQ person4 = { "John", "Saalwaechter", 28 };
+  inserter.insert(person4);
+
+  PersonQ person5 = { "John", "Saalwachter", 29 };
+  inserter.insert(person5);
+
+  CHECK_EQUAL(5U, session.query(table).all().size());
+
+  CHECK_EQUAL(3U, session.query(table).limit(3).all().size());
+
+}
+
+
+TEST(Query_skip) {
+  Session session("localhost");
+
+  Table<PersonQ> table("test.query_filter_greater_than");
+  table.add_field("first_name", &PersonQ::first_name);
+  table.add_field("last_name", &PersonQ::last_name);
+  table.add_field("age", &PersonQ::age);
+
+  session.query(table).remove_all();
+
+  Inserter<PersonQ> inserter = session.inserter(table);
+
+  PersonQ person1 = { "Jack", "Saalweachter", 25 };
+  inserter.insert(person1);
+
+  PersonQ person2 = { "John", "Saalweachter", 26 };
+  inserter.insert(person2);
+
+  PersonQ person3 = { "Jack", "Saalwaechter", 27 };
+  inserter.insert(person3);
+
+  PersonQ person4 = { "John", "Saalwaechter", 28 };
+  inserter.insert(person4);
+
+  PersonQ person5 = { "John", "Saalwachter", 29 };
+  inserter.insert(person5);
+
+  CHECK_EQUAL(5U, session.query(table).all().size());
+
+  CHECK_EQUAL(3U, session.query(table).skip(2).all().size());
+  CHECK_EQUAL(2U, session.query(table).skip(3).all().size());
+
+}
+

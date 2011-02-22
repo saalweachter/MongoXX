@@ -54,8 +54,11 @@ namespace mongoxx {
 
     template <typename T>
     QueryResult<T> execute_query(std::string const& collection,
-				 mongo::Query const& query, Mapper<T> const* mapper) {
-      return QueryResult<T>(execute_query(collection, query), mapper);
+				 mongo::Query const& query,
+				 unsigned int limit, unsigned int skip,
+				 Mapper<T> const* mapper) {
+      return QueryResult<T>(execute_query(collection, query, limit, skip),
+			    mapper);
     }
 
     void insert(std::string const& collection, mongo::BSONObj const& object) {
@@ -71,8 +74,8 @@ namespace mongoxx {
     }
 
     std::tr1::shared_ptr<mongo::DBClientCursor>
-    execute_query(std::string const& collection, mongo::Query const& query) {
-      return std::tr1::shared_ptr<mongo::DBClientCursor>(m_connection->query(collection, query).release());
+    execute_query(std::string const& collection, mongo::Query const& query, unsigned int limit, unsigned int skip) {
+      return std::tr1::shared_ptr<mongo::DBClientCursor>(m_connection->query(collection, query, limit, skip).release());
     }
  
   private:

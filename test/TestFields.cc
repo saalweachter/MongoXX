@@ -420,3 +420,38 @@ TEST(VectorIntField_field_mismatch_2) {
 
 }
 
+
+struct FriendlessPerson {
+  std::string first_name;
+  std::string last_name;
+};
+
+struct FriendfulPerson {
+  std::string first_name;
+  std::string last_name;
+  std::vector<FriendlessPerson> friends;
+};
+
+TEST(MultiLevelPeople_1) {
+  Mapper<FriendlessPerson> less_mapper;
+  less_mapper.add_field("first_name", &FriendlessPerson::first_name);
+  less_mapper.add_field("last_name", &FriendlessPerson::last_name);
+
+  Mapper<FriendfulPerson> ful_mapper;
+  ful_mapper.add_field("first_name", &FriendfulPerson::first_name);
+  ful_mapper.add_field("last_name", &FriendfulPerson::last_name);
+  ful_mapper.add_field("friends", &FriendfulPerson::friends, less_mapper);
+  
+  FriendfulPerson person1;
+  person1.first_name = "Jack";
+  person1.last_name = "Saalweachter";
+
+  FriendlessPerson person2 = { "John", "Saalweachter" };
+  FriendlessPerson person3 = { "Jack", "Saalwaechter" };
+
+  person1.friends.push_back(person2);
+  person1.friends.push_back(person3);
+
+  CHECK_EQUAL("{ \"first_name\" : \"Jack\", \"last_name\" : \"Saalweachter\", \"friends\" : [ { \"first_name\" : \"John\", \"last_name\" : \"Saalweachter\" }, { \"first_name\" : \"Jack\", \"last_name\" : \"Saalwaechter\" } ] }", ful_mapper.to_json(person1));
+}
+

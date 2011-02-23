@@ -52,6 +52,12 @@ namespace mongoxx {
       return *this;
     }
 
+    template <typename U, typename Alloc>
+    Mapper& add_field(std::string const& name, std::vector<U, Alloc> T::*field, Mapper<U> const& mapper) {
+      m_fields.push_back(new MappedArrayDirectField<U, Alloc>(name, field, mapper));
+      return *this;
+    }
+
     template <typename U>
     Mapper& add_field(std::string const& name,
 		      U const& (T::*getter)() const, void (T::*setter)(U const&)) {
@@ -153,6 +159,45 @@ namespace mongoxx {
 
     private:
       U T::*m_field;
+    };
+
+    template <typename U, typename Alloc>
+    class MappedArrayDirectField : public Field {
+    public:
+      MappedArrayDirectField(std::string const& name, std::vector<U, Alloc> T::*field, Mapper<U> const& mapper)
+	: Field(name), m_field(field), m_mapper(mapper) { }
+
+      Field* clone() const {
+	return new MappedArrayDirectField(this->name(), field(), mapper());
+      }
+
+      std::vector<U, Alloc> T::* field() const { return m_field; }
+      Mapper<U> const& mapper() const { return m_mapper; }
+      void to_bson(T const& t, mongo::BSONObjBuilder &builder) const {
+	mongo::BSONArrayBuilder arrbuilder;
+	std::vector<U, Alloc> const& v = t.*m_field;
+	for (typename std::vector<U, Alloc>::const_iterator i = v.begin(); i != v.end(); ++i) {
+	  arrbuilder.append(m_mapper.to_bson(*i));
+	}
+	builder.append(this->name(), arrbuilder.arr());
+      }
+      void from_bson(mongo::BSONObj const &bson, T &t) const {
+	(t.*m_field).clear();
+	if (not bson.hasField(this->name().c_str())) {
+	  throw bson_error("Field '" + this->name() + "' is not in the BSON object.");
+	}
+	mongo::BSONElement element = bson.getField(this->name());
+	_check(element, mongo::Array, "array");
+	std::vector<mongo::BSONElement> elements = element.Array();
+	for (std::vector<mongo::BSONElement>::const_iterator i = elements.begin();
+	     i != elements.end(); ++i) {
+	  (t.*m_field).push_back(m_mapper.from_bson(i->Obj()));
+	}
+      }
+
+    private:
+      std::vector<U, Alloc> T::*m_field;
+      Mapper<U> m_mapper;
     };
 
     template <typename U>

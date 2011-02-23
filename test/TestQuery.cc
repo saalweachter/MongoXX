@@ -231,3 +231,45 @@ TEST(Query_skip) {
 
 }
 
+
+TEST(Query_sort_order) {
+  Session session("localhost");
+
+  Table<PersonQ> table("test.query_sort_order");
+  table.add_field("first_name", &PersonQ::first_name);
+  table.add_field("last_name", &PersonQ::last_name);
+  table.add_field("age", &PersonQ::age);
+
+  session.query(table).remove_all();
+
+  Inserter<PersonQ> inserter = session.inserter(table);
+
+  PersonQ person1 = { "Jack", "Saalweachter", 25 };
+  inserter.insert(person1);
+
+  PersonQ person2 = { "John", "Saalweachter", 26 };
+  inserter.insert(person2);
+
+  PersonQ person3 = { "Jack", "Saalwaechter", 27 };
+  inserter.insert(person3);
+
+  PersonQ person4 = { "John", "Saalwaechter", 28 };
+  inserter.insert(person4);
+
+  PersonQ person5 = { "John", "Saalwachter", 29 };
+  inserter.insert(person5);
+
+
+  CHECK_EQUAL(5U, session.query(table).all().size());
+
+  CHECK_EQUAL(25U, session.query(table).ascending(&PersonQ::age).first().age);
+  CHECK_EQUAL(29U, session.query(table).descending(&PersonQ::age).first().age);
+
+  CHECK_EQUAL(26U, session.query(table).ascending(&PersonQ::age).skip(1).first().age);
+  CHECK_EQUAL(28U, session.query(table).descending(&PersonQ::age).skip(1).first().age);
+
+  CHECK_EQUAL("Jack", session.query(table).ascending(&PersonQ::first_name).first().first_name);
+  CHECK_EQUAL("John", session.query(table).descending(&PersonQ::first_name).first().first_name);
+
+}
+

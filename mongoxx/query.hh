@@ -80,7 +80,7 @@ namespace mongoxx {
   public:
     Query(Session *session, std::string const& collection, Mapper<T> const* mapper)
       : m_session(session), m_collection(collection), m_mapper(mapper),
-	m_limit(0), m_skip(0) { }
+	m_limit(0), m_skip(0), m_sort_direction(0) { }
 
     QueryResult<T> result() const {
       return m_session->execute_query(m_collection, query(), m_limit, m_skip,
@@ -109,7 +109,8 @@ namespace mongoxx {
 
     Query filter(Filter<T> const& by) const {
       return Query(m_session, m_collection, m_mapper,
-		   merge(m_filters, by.apply(m_mapper)), m_limit, m_skip);
+		   merge(m_filters, by.apply(m_mapper)), m_limit, m_skip,
+		   m_sort_by, m_sort_direction);
     }
 
     void update(Update<T> const& update) const {
@@ -117,18 +118,47 @@ namespace mongoxx {
     }
 
     Query skip(unsigned int N) const {
-      return Query(m_session, m_collection, m_mapper, m_filters, m_limit, N);
+      return Query(m_session, m_collection, m_mapper, m_filters, m_limit, N,
+		   m_sort_by, m_sort_direction);
     }
 
     Query limit(unsigned int N) const {
-      return Query(m_session, m_collection, m_mapper, m_filters, N, m_skip);
+      return Query(m_session, m_collection, m_mapper, m_filters, N, m_skip,
+		   m_sort_by, m_sort_direction);
     }
+
+    template <typename U>
+    Query ascending(U T::*field) const {
+      return Query(m_session, m_collection, m_mapper, m_filters, m_limit,
+		   m_skip, m_mapper->lookup_field(field), 1);
+    }
+
+    template <typename U>
+    Query descending(U T::*field) const {
+      return Query(m_session, m_collection, m_mapper, m_filters, m_limit,
+		   m_skip, m_mapper->lookup_field(field), -1);
+    }
+
+    template <typename U>
+    Query ascending(U (T::*getter)()) const {
+      return Query(m_session, m_collection, m_mapper, m_filters, m_limit,
+		   m_skip, m_mapper->lookup_field(getter), 1);
+    }
+
+    template <typename U>
+    Query descending(U (T::*getter)()) const {
+      return Query(m_session, m_collection, m_mapper, m_filters, m_limit,
+		   m_skip, m_mapper->lookup_field(getter), -1);
+    }
+		   
 
   private:
     Query(Session *session, std::string const& collection, Mapper<T> const* mapper,
-	  mongo::BSONObj const& filters, unsigned int limit, unsigned int skip)
+	  mongo::BSONObj const& filters, unsigned int limit, unsigned int skip,
+	  std::string sort_by, int sort_direction)
       : m_session(session), m_collection(collection), m_mapper(mapper),
-	m_filters(filters), m_limit(limit), m_skip(skip) { }
+	m_filters(filters), m_limit(limit), m_skip(skip),
+	m_sort_by(sort_by), m_sort_direction(sort_direction) { }
 
     Session *m_session;
     std::string m_collection;
@@ -136,9 +166,14 @@ namespace mongoxx {
     mongo::BSONObj m_filters;
     unsigned int m_limit;
     unsigned int m_skip;
+    std::string m_sort_by;
+    int m_sort_direction;
 
     mongo::Query query() const {
       mongo::Query query(m_filters);
+      if (m_sort_direction != 0) {
+	query.sort(m_sort_by, m_sort_direction);
+      }
       return query;
     }
 

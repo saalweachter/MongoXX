@@ -86,9 +86,26 @@ TEST(FilterTest_less_and_greater) {
   mapper.add_field("alive", &Person::alive);
   mapper.add_field("weight", &Person::weight);
 
-  CHECK_EQUAL("{ \"age\" : { \"$gt\" : 25 } , \"$lt\" : 30 }", (mapper[&Person::age] > 25, mapper[&Person::age] < 30).to_bson().jsonString());
-  CHECK_EQUAL("{ \"random_long\" : { \"$gt\" : 42424242 } }", (mapper[&Person::random_long] > 42424242).to_bson().jsonString());
-  CHECK_EQUAL("{ \"weight\" : { \"$gt\" : 210.5 } }", (mapper[&Person::weight] > 210.5).to_bson().jsonString());
+  CHECK_EQUAL("{ \"age\" : { \"$gt\" : 25, \"$lt\" : 30 } }", (mapper[&Person::age] > 25, mapper[&Person::age] < 30).to_bson().jsonString());
+
+}
+
+
+TEST(FilterTest_in) {
+  Mapper<Person> mapper;
+  mapper.add_field("first_name", &Person::first_name);
+  mapper.add_field("last_name", &Person::last_name);
+  mapper.add_field("age", &Person::age);
+  mapper.add_field("random_long", &Person::random_long);
+  mapper.add_field("alive", &Person::alive);
+  mapper.add_field("weight", &Person::weight);
+
+  std::vector<int> vs;
+  vs.push_back(1);
+  vs.push_back(2);
+  vs.push_back(3);
+
+  CHECK_EQUAL("{ \"age\" : { \"$in\" : [ 1, 2, 3 ] } }", (mapper[&Person::age].in(vs)).to_bson().jsonString());
 
 }
 

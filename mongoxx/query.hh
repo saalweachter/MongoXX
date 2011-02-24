@@ -117,6 +117,10 @@ namespace mongoxx {
       return m_session->execute_update(m_collection, m_filters.to_bson(), update.to_bson());
     }
 
+    void update(T const& t) const {
+      return update(Update("$set", m_mapper->to_bson(t)));
+    }
+
     Query skip(unsigned int N) const {
       return Query(m_session, m_collection, m_mapper, m_filters, m_limit, N,
 		   m_sort_by, m_sort_direction);

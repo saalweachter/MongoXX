@@ -273,3 +273,29 @@ TEST(Query_sort_order) {
 
 }
 
+
+TEST(Query_update_increment) {
+  Session session("localhost");
+
+  Table<PersonQ> table("test.query_update_increment");
+  table.add_field("first_name", &PersonQ::first_name);
+  table.add_field("last_name", &PersonQ::last_name);
+  table.add_field("age", &PersonQ::age);
+
+  session.query(table).remove_all();
+
+  PersonQ person = { "Jack", "Saalweachter", 25 };
+  session.inserter(table).insert(person);
+
+  CHECK_EQUAL(25U, session.query(table).filter(table[&PersonQ::first_name] == "Jack").filter(table[&PersonQ::last_name] == "Saalweachter").one().age);
+
+  session.query(table).filter(table[&PersonQ::first_name] == "Jack").filter(table[&PersonQ::last_name] == "Saalweachter").update(table[&PersonQ::age] += 1);
+
+  CHECK_EQUAL(26U, session.query(table).filter(table[&PersonQ::first_name] == "Jack").filter(table[&PersonQ::last_name] == "Saalweachter").one().age);
+
+  session.query(table).filter(table[&PersonQ::first_name] == "Jack").filter(table[&PersonQ::last_name] == "Saalweachter").update(table[&PersonQ::age] += 5);
+
+  CHECK_EQUAL(31U, session.query(table).filter(table[&PersonQ::first_name] == "Jack").filter(table[&PersonQ::last_name] == "Saalweachter").one().age);
+
+}
+

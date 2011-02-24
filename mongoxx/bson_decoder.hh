@@ -69,6 +69,15 @@ namespace mongoxx {
   };
 
   template <>
+  class BSONDecoderBackend<unsigned long long> {
+  public:
+    static void decode(unsigned long long &l, mongo::BSONElement const& element) {
+      _check(element, mongo::NumberLong, "long");
+      l = element.Long();
+    }
+  };
+
+  template <>
   class BSONDecoderBackend<bool> {
   public:
     static void decode(bool &b, mongo::BSONElement const& element) {

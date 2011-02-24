@@ -455,3 +455,93 @@ TEST(MultiLevelPeople_1) {
   CHECK_EQUAL("{ \"first_name\" : \"Jack\", \"last_name\" : \"Saalweachter\", \"friends\" : [ { \"first_name\" : \"John\", \"last_name\" : \"Saalweachter\" }, { \"first_name\" : \"Jack\", \"last_name\" : \"Saalwaechter\" } ] }", ful_mapper.to_json(person1));
 }
 
+
+struct UnsignedStuff {
+  unsigned int a;
+  unsigned long long b;
+};
+
+/*
+TEST(Unsigned_encode_decode) {
+  // This tests string field encoding/decoding with no exceptions.
+  Mapper<UnsignedStuff> mapper;
+  mapper.add_field("a", &UnsignedStuff::a);
+  mapper.add_field("b", &UnsignedStuff::b);
+
+  UnsignedStuff stuff1 = { 42, 401 };
+
+  mongo::BSONObj bson = mapper.to_bson(stuff1);
+
+  UnsignedStuff stuff2 = mapper.from_bson(bson);
+
+  CHECK_EQUAL(stuff1.a, stuff2.a);
+  CHECK_EQUAL(stuff1.b, stuff2.b);
+}
+
+
+TEST(Unsigned_missing_field_1) {
+  // This tests the exception thrown when a field is missing.
+  Mapper<UnsignedStuff> deficient_mapper;
+  deficient_mapper.add_field("a", &UnsignedStuff::a);
+
+  UnsignedStuff stuff1 = { 42, 401 };
+
+  mongo::BSONObj bson = deficient_mapper.to_bson(stuff1);
+
+  Mapper<UnsignedStuff> mapper;
+  mapper.add_field("a", &UnsignedStuff::a);
+  mapper.add_field("b", &UnsignedStuff::b);
+
+  CHECK_THROW(mapper.from_bson(bson), bson_error);
+}
+
+
+TEST(Unsigned_missing_field_2) {
+  // This tests the exception thrown when a field is missing.
+  Mapper<UnsignedStuff> deficient_mapper;
+  deficient_mapper.add_field("b", &UnsignedStuff::b);
+
+  UnsignedStuff stuff1 = { 42, 401 };
+
+  mongo::BSONObj bson = deficient_mapper.to_bson(stuff1);
+
+  Mapper<UnsignedStuff> mapper;
+  mapper.add_field("a", &UnsignedStuff::a);
+  mapper.add_field("b", &UnsignedStuff::b);
+
+  CHECK_THROW(mapper.from_bson(bson), bson_error);
+}
+
+
+TEST(Unsigned_mistyped_field_1) {
+  // This tests the exception thrown when a field is not the type we expect.
+  Mapper<UnsignedStuff> deficient_mapper;
+  deficient_mapper.add_field("a", &UnsignedStuff::b);
+
+  UnsignedStuff stuff1 = { 42, 401 };
+
+  mongo::BSONObj bson = deficient_mapper.to_bson(stuff1);
+
+  Mapper<UnsignedStuff> mapper;
+  mapper.add_field("a", &UnsignedStuff::a);
+
+  CHECK_THROW(mapper.from_bson(bson), bson_error);
+}
+
+
+TEST(Unsigned_mistyped_field_2) {
+  // This tests the exception thrown when a field is not the type we expect.
+  Mapper<UnsignedStuff> deficient_mapper;
+  deficient_mapper.add_field("b", &UnsignedStuff::a);
+
+  UnsignedStuff stuff1 = { 42, 401 };
+
+  mongo::BSONObj bson = deficient_mapper.to_bson(stuff1);
+
+  Mapper<UnsignedStuff> mapper;
+  mapper.add_field("b", &UnsignedStuff::a);
+
+  CHECK_THROW(mapper.from_bson(bson), bson_error);
+}
+*/
+

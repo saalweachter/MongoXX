@@ -7,42 +7,45 @@
 #ifndef MONGOXX_UPDATE_HH
 #define MONGOXX_UPDATE_HH
 
-#include "mongoxx/field.hh"
+#include "mongo/client/dbclient.h"
 
 namespace mongoxx {
 
-  template <typename T>
   class Update {
   public:
-    virtual ~Update() { }
 
-    virtual mongo::BSONObj apply(Mapper<T> const* mapper) const = 0;
-  };
+    Update(std::string const& operation, mongo::BSONObj parameters) {
+      m_updates[operation] = parameters;
+    }
 
-  template <template <class T, class U> class Member, typename T, typename U>
-  class MemberIncrement : public Update<T> {
-  public:
-    MemberIncrement(Member<T, U> const& member, U const& value)
-      : m_member(member), m_value(value) { }
+    Update(Update const& a, Update const& b) : m_updates(a.m_updates) {
+      for (std::map<std::string, mongo::BSONObj>::const_iterator i = b.m_updates.begin(); i != b.m_updates.end(); ++i) {
+	if (m_updates.find(i->first) == m_updates.end()) {
+	  m_updates[i->first] = i->second;
+	} else {
+	  mongo::BSONObjBuilder builder;
+	  builder.appendElements(m_updates[i->first]);
+	  builder.appendElements(i->second);
+	  m_updates[i->first] = builder.obj();
+	}
+      }
+    }
 
-    mongo::BSONObj apply(Mapper<T> const* mapper) const {
-      mongo::BSONObjBuilder builder2;
-      builder2.append(m_member.field_name(mapper), m_value);
+    mongo::BSONObj to_bson() const {
       mongo::BSONObjBuilder builder;
-      builder.append("$inc", builder2.obj());
+      for (std::map<std::string, mongo::BSONObj>::const_iterator i = m_updates.begin(); i != m_updates.end(); ++i) {
+	builder.append(i->first, i->second);
+      }
       return builder.obj();
     }
 
   private:
-    Member<T, U> m_member;
-    U m_value;
+      std::map<std::string, mongo::BSONObj> m_updates;
   };
 
-  template <template <class T, class U> class Member, typename T, typename U, typename V>
-  MemberIncrement<Member, T, U> operator += (Member<T, U> const& member, V const& value) {
-    return MemberIncrement<Member, T, U>(member, value);
+  inline Update operator , (Update const& a, Update const& b) {
+    return Update(a, b);
   }
-
 
 };
 

@@ -21,9 +21,8 @@ namespace mongoxx {
     std::string const& collection() const { return m_collection; }
     Mapper<T> const* mapper() const { return &m_mapper; }
 
-    // This doesn't actually do anything.
     template <typename U>
-    Field<T, U> operator[](U T::*member) const { return field(member); }
+    Field<T, U> operator[](U T::*member) const { return m_mapper[member]; }
 
     template <typename U>
     Table& add_field(std::string const& name, U T::*field) {
@@ -37,6 +36,7 @@ namespace mongoxx {
       m_mapper.add_field(name, getter, setter);
       return *this;
     }
+
 
   private:
     std::string m_collection;

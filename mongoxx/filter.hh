@@ -6,91 +6,57 @@
 #ifndef MONGOXX_FILTER_HH
 #define MONGOXX_FILTER_HH
 
-#include "field.hh"
+#include "mongo/client/dbclient.h"
 
 namespace mongoxx {
 
-  template <typename T>
   class Filter {
   public:
-    virtual ~Filter() { }
 
-    virtual mongo::BSONObj apply(Mapper<T> const* mapper) const = 0;
-  };
+    Filter() { }
+    Filter(mongo::BSONObj const& filter) : m_filter(filter) { }
 
-  template <template <class T, class U> class Member, typename T, typename U>
-  class MemberEqual : public Filter<T> {
-  public:
-    MemberEqual(Member<T, U> const& member, U const& value)
-      : m_member(member), m_value(value) { }
+    Filter(Filter const& a, Filter const& b) {
+      std::set<std::string> fields;
 
-    mongo::BSONObj apply(Mapper<T> const* mapper) const {
+      a.m_filter.getFieldNames(fields);
+      b.m_filter.getFieldNames(fields);
+
       mongo::BSONObjBuilder builder;
-      builder.append(m_member.field_name(mapper), m_value);
-      return builder.obj();
+      for (std::set<std::string>::const_iterator i = fields.begin(); i != fields.end(); ++i) {
+	if (a.m_filter.hasField(i->c_str()) and b.m_filter.hasField(i->c_str())) {
+	  // In both!
+	  mongo::BSONElement a_elem = a.m_filter.getField(*i);
+	  mongo::BSONElement b_elem = b.m_filter.getField(*i);
+	  if (a_elem.type() != mongo::Object or a_elem.type() != mongo::Object)
+	    throw invalid_argument("Multiple equality filters applied to the same field.");
+	  mongo::BSONObjBuilder builder2;
+	  builder2.appendElements(a_elem.Obj());
+	  builder2.appendElements(b_elem.Obj());
+	  builder.append(i->c_str(), builder2.obj());
+	} else if (a.m_filter.hasField(i->c_str())) {
+	  // In a.
+	  builder.append(a.m_filter.getField(*i));
+	} else {
+	  // In b.
+	  builder.append(b.m_filter.getField(*i));
+	}
+      }
+      m_filter = builder.obj();
+    }
+
+    mongo::BSONObj to_bson() const {
+      return m_filter;
     }
 
   private:
-    Member<T, U> m_member;
-    U m_value;
+    mongo::BSONObj m_filter;
   };
 
-  template <template <class T, class U> class Member, typename T, typename U, typename V>
-  MemberEqual<Member, T, U> operator == (Member<T, U> const& member, V const& value) {
-    return MemberEqual<Member, T, U>(member, value);
+  inline Filter operator , (Filter const& a, Filter const& b) {
+    return Filter(a, b);
   }
 
-
-
-  template <template <class T, class U> class Member, typename T, typename U>
-  class MemberLess : public Filter<T> {
-  public:
-    MemberLess(Member<T, U> const& member, U const& value)
-      : m_member(member), m_value(value) { }
-
-    mongo::BSONObj apply(Mapper<T> const* mapper) const {
-      mongo::BSONObjBuilder builder;
-      mongo::BSONObjBuilder builder2;
-      builder2.append("$lt", m_value);
-      builder.append(m_member.field_name(mapper), builder2.obj());
-      return builder.obj();
-    }
-
-  private:
-    Member<T, U> m_member;
-    U m_value;
-  };
-
-  template <template <class T, class U> class Member, typename T, typename U, typename V>
-  MemberLess<Member, T, U> operator < (Member<T, U> const& member, V const& value) {
-    return MemberLess<Member, T, U>(member, value);
-  }
-
-
-
-  template <template <class T, class U> class Member, typename T, typename U>
-  class MemberGreater : public Filter<T> {
-  public:
-    MemberGreater(Member<T, U> const& member, U const& value)
-      : m_member(member), m_value(value) { }
-
-    mongo::BSONObj apply(Mapper<T> const* mapper) const {
-      mongo::BSONObjBuilder builder;
-      mongo::BSONObjBuilder builder2;
-      builder2.append("$gt", m_value);
-      builder.append(m_member.field_name(mapper), builder2.obj());
-      return builder.obj();
-    }
-
-  private:
-    Member<T, U> m_member;
-    U m_value;
-  };
-
-  template <template <class T, class U> class Member, typename T, typename U, typename V>
-  MemberGreater<Member, T, U> operator > (Member<T, U> const& member, V const& value) {
-    return MemberGreater<Member, T, U>(member, value);
-  }
 
 };
 

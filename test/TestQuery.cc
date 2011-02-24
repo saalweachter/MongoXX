@@ -22,7 +22,7 @@ TEST(Filter_equals) {
   mapper.add_field("first_name", &PersonQ::first_name);
   mapper.add_field("last_name", &PersonQ::last_name);
 
-  mongo::BSONObj bson = (field(&PersonQ::first_name) == "Jack").apply(&mapper);
+  mongo::BSONObj bson = (mapper[&PersonQ::first_name] == "Jack").to_bson();
   CHECK_EQUAL("{ \"first_name\" : \"Jack\" }", bson.jsonString());
 }
 
@@ -53,11 +53,11 @@ TEST(Query_filter_equals) {
 
   CHECK_EQUAL(4U, session.query("test.query_filter_equals", &mapper).all().size());
 
-  CHECK_EQUAL(2U, session.query("test.query_filter_equals", &mapper).filter(field(&PersonQ::first_name) == "Jack").all().size());
+  CHECK_EQUAL(2U, session.query("test.query_filter_equals", &mapper).filter(mapper[&PersonQ::first_name] == "Jack").all().size());
 
-  CHECK_EQUAL(1U, session.query("test.query_filter_equals", &mapper).filter(field(&PersonQ::first_name) == "Jack").filter(field(&PersonQ::last_name) == "Saalweachter").all().size());
+  CHECK_EQUAL(1U, session.query("test.query_filter_equals", &mapper).filter(mapper[&PersonQ::first_name] == "Jack").filter(mapper[&PersonQ::last_name] == "Saalweachter").all().size());
 
-  CHECK_EQUAL(0U, session.query("test.query_filter_equals", &mapper).filter(field(&PersonQ::first_name) == "Joe").all().size());
+  CHECK_EQUAL(0U, session.query("test.query_filter_equals", &mapper).filter(mapper[&PersonQ::first_name] == "Joe").all().size());
 
 }
 
@@ -88,7 +88,7 @@ TEST(Query_filter_remove_all) {
 
   CHECK_EQUAL(4U, session.query("test.query_filter_remove_all", &mapper).all().size());
 
-  session.query("test.query_filter_remove_all", &mapper).filter(field(&PersonQ::first_name) == "Jack").remove_all();
+  session.query("test.query_filter_remove_all", &mapper).filter(mapper[&PersonQ::first_name] == "Jack").remove_all();
 
   CHECK_EQUAL(2U, session.query("test.query_filter_remove_all", &mapper).all().size());
 

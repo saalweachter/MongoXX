@@ -12,6 +12,7 @@
 #define MONGOXX_MAPPER_HH
 
 #include "bson_decoder.hh"
+#include "field.hh"
 
 namespace mongoxx {
 
@@ -21,25 +22,25 @@ namespace mongoxx {
 
     Mapper() { }
     ~Mapper() {
-      for (typename std::vector<Field*>::iterator i = m_fields.begin(); i != m_fields.end(); ++i) {
+      for (typename std::vector<Member*>::iterator i = m_fields.begin(); i != m_fields.end(); ++i) {
 	delete *i;
       }
     }
 
     Mapper(Mapper const& mapper) {
-      for (typename std::vector<Field*>::const_iterator i = mapper.m_fields.begin(); i != mapper.m_fields.end(); ++i) {
+      for (typename std::vector<Member*>::const_iterator i = mapper.m_fields.begin(); i != mapper.m_fields.end(); ++i) {
 	m_fields.push_back((*i)->clone());
       }
     }
 
     Mapper& operator = (Mapper const& mapper) {
       if (&mapper == this) return *this;
-      for (typename std::vector<Field*>::iterator i = m_fields.begin(); i != m_fields.end(); ++i) {
+      for (typename std::vector<Member*>::iterator i = m_fields.begin(); i != m_fields.end(); ++i) {
 	delete *i;
       }
       m_fields.clear();
 
-      for (typename std::vector<Field*>::const_iterator i = mapper.m_fields.begin(); i != mapper.m_fields.end(); ++i) {
+      for (typename std::vector<Member*>::const_iterator i = mapper.m_fields.begin(); i != mapper.m_fields.end(); ++i) {
 	m_fields.push_back((*i)->clone());
       }
 
@@ -48,34 +49,34 @@ namespace mongoxx {
 
     template <typename U>
     Mapper& add_field(std::string const& name, U T::*field) {
-      m_fields.push_back(new DirectField<U>(name, field));
+      m_fields.push_back(new DirectMember<U>(name, field));
       return *this;
     }
 
     template <typename U, typename Alloc>
     Mapper& add_field(std::string const& name, std::vector<U, Alloc> T::*field, Mapper<U> const& mapper) {
-      m_fields.push_back(new MappedArrayDirectField<U, Alloc>(name, field, mapper));
+      m_fields.push_back(new MappedArrayDirectMember<U, Alloc>(name, field, mapper));
       return *this;
     }
 
     template <typename U>
     Mapper& add_field(std::string const& name,
 		      U const& (T::*getter)() const, void (T::*setter)(U const&)) {
-      m_fields.push_back(new IndirectField<U>(name, getter, setter));
+      m_fields.push_back(new IndirectMember<U>(name, getter, setter));
       return *this;
     }
 
     template <typename U>
     Mapper& add_field(std::string const& name,
 		      U (T::*getter)() const, void (T::*setter)(U)) {
-      m_fields.push_back(new IndirectField2<U>(name, getter, setter));
+      m_fields.push_back(new IndirectMember2<U>(name, getter, setter));
       return *this;
     }
 
     template <typename U>
     std::string const& lookup_field(U T::*field) const {
-      for (typename std::vector<Field*>::const_iterator i = m_fields.begin(); i != m_fields.end(); ++i) {
-	if (DirectField<U> const* f = dynamic_cast<DirectField<U> const*>(*i)) {
+      for (typename std::vector<Member*>::const_iterator i = m_fields.begin(); i != m_fields.end(); ++i) {
+	if (DirectMember<U> const* f = dynamic_cast<DirectMember<U> const*>(*i)) {
 	  if (f->field() == field)
 	    return f->name();
 	}
@@ -85,8 +86,8 @@ namespace mongoxx {
 
     template <typename U>
     std::string const& lookup_field(U const& (T::*getter)()) const {
-      for (typename std::vector<Field*>::const_iterator i = m_fields.begin(); i != m_fields.end(); ++i) {
-	if (IndirectField<U> const* f = dynamic_cast<IndirectField<U> const*>(*i)) {
+      for (typename std::vector<Member*>::const_iterator i = m_fields.begin(); i != m_fields.end(); ++i) {
+	if (IndirectMember<U> const* f = dynamic_cast<IndirectMember<U> const*>(*i)) {
 	  if (f->getter() == getter)
 	    return f->name();
 	} 
@@ -100,7 +101,7 @@ namespace mongoxx {
 
     void to_bson(T const& t, mongo::BSONObj &target) const {
       mongo::BSONObjBuilder builder;
-      for (typename std::vector<Field*>::const_iterator i = m_fields.begin(); i != m_fields.end(); ++i) {
+      for (typename std::vector<Member*>::const_iterator i = m_fields.begin(); i != m_fields.end(); ++i) {
 	(*i)->to_bson(t, builder);
       }
       target = builder.obj();
@@ -113,7 +114,7 @@ namespace mongoxx {
     }
 
     void from_bson(mongo::BSONObj const& bson, T &t) const {
-      for (typename std::vector<Field*>::const_iterator i = m_fields.begin(); i != m_fields.end(); ++i) {
+      for (typename std::vector<Member*>::const_iterator i = m_fields.begin(); i != m_fields.end(); ++i) {
 	(*i)->from_bson(bson, t);
       }
     }
@@ -124,12 +125,18 @@ namespace mongoxx {
       return t;
     }
 
+    template <typename U>
+    Field<T, U> operator[](U T::*field) const {
+      return Field<T, U>(this, lookup_field(field));
+    }
+
+
   private:
-    class Field {
+    class Member {
     public:
-      Field(std::string const& name) : m_name(name) { }
-      virtual ~Field() { }
-      virtual Field* clone() const = 0;
+      Member(std::string const& name) : m_name(name) { }
+      virtual ~Member() { }
+      virtual Member* clone() const = 0;
 
       std::string const& name() const { return m_name; }
       virtual void to_bson(T const&, mongo::BSONObjBuilder&) const = 0;
@@ -140,13 +147,13 @@ namespace mongoxx {
     };
 
     template <typename U>
-    class DirectField : public Field {
+    class DirectMember : public Member {
     public:
-      DirectField(std::string const& name, U T::*field)
-	: Field(name), m_field(field) { }
+      DirectMember(std::string const& name, U T::*field)
+	: Member(name), m_field(field) { }
 
-      Field* clone() const {
-	return new DirectField(this->name(), field());
+      Member* clone() const {
+	return new DirectMember(this->name(), field());
       }
 
       U T::* field() const { return m_field; }
@@ -162,13 +169,13 @@ namespace mongoxx {
     };
 
     template <typename U, typename Alloc>
-    class MappedArrayDirectField : public Field {
+    class MappedArrayDirectMember : public Member {
     public:
-      MappedArrayDirectField(std::string const& name, std::vector<U, Alloc> T::*field, Mapper<U> const& mapper)
-	: Field(name), m_field(field), m_mapper(mapper) { }
+      MappedArrayDirectMember(std::string const& name, std::vector<U, Alloc> T::*field, Mapper<U> const& mapper)
+	: Member(name), m_field(field), m_mapper(mapper) { }
 
-      Field* clone() const {
-	return new MappedArrayDirectField(this->name(), field(), mapper());
+      Member* clone() const {
+	return new MappedArrayDirectMember(this->name(), field(), mapper());
       }
 
       std::vector<U, Alloc> T::* field() const { return m_field; }
@@ -184,7 +191,7 @@ namespace mongoxx {
       void from_bson(mongo::BSONObj const &bson, T &t) const {
 	(t.*m_field).clear();
 	if (not bson.hasField(this->name().c_str())) {
-	  throw bson_error("Field '" + this->name() + "' is not in the BSON object.");
+	  throw bson_error("Member '" + this->name() + "' is not in the BSON object.");
 	}
 	mongo::BSONElement element = bson.getField(this->name());
 	_check(element, mongo::Array, "array");
@@ -201,16 +208,16 @@ namespace mongoxx {
     };
 
     template <typename U>
-    class IndirectField : public Field {
+    class IndirectMember : public Member {
     public:
       typedef U const& (T::*GETTER)() const;
       typedef void (T::*SETTER)(U const&);
 
-      IndirectField(std::string const& name, GETTER getter, SETTER setter)
-	: Field(name), m_getter(getter), m_setter(setter) { }
+      IndirectMember(std::string const& name, GETTER getter, SETTER setter)
+	: Member(name), m_getter(getter), m_setter(setter) { }
 
-      Field* clone() const {
-	return new IndirectField(this->name(), getter(), setter());
+      Member* clone() const {
+	return new IndirectMember(this->name(), getter(), setter());
       }
 
       GETTER getter() const { return m_getter; }
@@ -228,16 +235,16 @@ namespace mongoxx {
     };
 
     template <typename U>
-    class IndirectField2 : public Field {
+    class IndirectMember2 : public Member {
     public:
       typedef U (T::*GETTER)() const;
       typedef void (T::*SETTER)(U);
 
-      IndirectField2(std::string const& name, GETTER getter, SETTER setter)
-	: Field(name), m_getter(getter), m_setter(setter) { }
+      IndirectMember2(std::string const& name, GETTER getter, SETTER setter)
+	: Member(name), m_getter(getter), m_setter(setter) { }
 
-      Field* clone() const {
-	return new IndirectField2(this->name(), getter(), setter());
+      Member* clone() const {
+	return new IndirectMember2(this->name(), getter(), setter());
       }
 
       GETTER getter() const { return m_getter; }
@@ -255,7 +262,7 @@ namespace mongoxx {
     };
 
 
-    std::vector<Field*> m_fields;
+    std::vector<Member*> m_fields;
   };
 };
 

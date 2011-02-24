@@ -107,14 +107,14 @@ namespace mongoxx {
       m_session->remove_one(m_collection, query());
     }
 
-    Query filter(Filter<T> const& by) const {
+    Query filter(Filter const& by) const {
       return Query(m_session, m_collection, m_mapper,
-		   merge(m_filters, by.apply(m_mapper)), m_limit, m_skip,
+		   (m_filters, by), m_limit, m_skip,
 		   m_sort_by, m_sort_direction);
     }
 
-    void update(Update<T> const& update) const {
-      return m_session->execute_update(m_collection, m_filters, update.apply(m_mapper));
+    void update(Update const& update) const {
+      return m_session->execute_update(m_collection, m_filters.to_bson(), update.to_bson());
     }
 
     Query skip(unsigned int N) const {
@@ -154,7 +154,7 @@ namespace mongoxx {
 
   private:
     Query(Session *session, std::string const& collection, Mapper<T> const* mapper,
-	  mongo::BSONObj const& filters, unsigned int limit, unsigned int skip,
+	  Filter const& filters, unsigned int limit, unsigned int skip,
 	  std::string sort_by, int sort_direction)
       : m_session(session), m_collection(collection), m_mapper(mapper),
 	m_filters(filters), m_limit(limit), m_skip(skip),
@@ -163,47 +163,18 @@ namespace mongoxx {
     Session *m_session;
     std::string m_collection;
     Mapper<T> const* m_mapper;
-    mongo::BSONObj m_filters;
+    Filter m_filters;
     unsigned int m_limit;
     unsigned int m_skip;
     std::string m_sort_by;
     int m_sort_direction;
 
     mongo::Query query() const {
-      mongo::Query query(m_filters);
+      mongo::Query query(m_filters.to_bson());
       if (m_sort_direction != 0) {
 	query.sort(m_sort_by, m_sort_direction);
       }
       return query;
-    }
-
-    static mongo::BSONObj merge(mongo::BSONObj const& a, mongo::BSONObj const& b) {
-      std::set<std::string> fields;
-
-      a.getFieldNames(fields);
-      b.getFieldNames(fields);
-
-      mongo::BSONObjBuilder builder;
-      for (std::set<std::string>::const_iterator i = fields.begin(); i != fields.end(); ++i) {
-	if (a.hasField(i->c_str()) and b.hasField(i->c_str())) {
-	  // In both!
-	  mongo::BSONElement a_elem = a.getField(*i);
-	  mongo::BSONElement b_elem = b.getField(*i);
-	  if (a_elem.type() != mongo::Object or a_elem.type() != mongo::Object)
-	    throw invalid_argument("Multiple equality filters applied to the same field.");
-	  mongo::BSONObjBuilder builder2;
-	  builder2.appendElements(a_elem.Obj());
-	  builder2.appendElements(b_elem.Obj());
-	  builder.append(i->c_str(), builder2.obj());
-	} else if (a.hasField(i->c_str())) {
-	  // In a.
-	  builder.append(a.getField(*i));
-	} else {
-	  // In b.
-	  builder.append(b.getField(*i));
-	}
-      }
-      return builder.obj();
     }
 
   };

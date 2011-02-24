@@ -90,6 +90,22 @@ namespace mongoxx {
       return Filter(builder.obj());
     }
 
+    template <typename V> Filter in(std::vector<V> const& v) const {
+      mongo::BSONObjBuilder builder;
+      mongo::BSONObjBuilder builder2;
+      builder2.append("$in", v);
+      builder.append(name(), builder2.obj());
+      return Filter(builder.obj());
+    }
+
+    template <typename V> Filter not_in(std::vector<V> const& v) const {
+      mongo::BSONObjBuilder builder;
+      mongo::BSONObjBuilder builder2;
+      builder2.append("$nin", v);
+      builder.append(name(), builder2.obj());
+      return Filter(builder.obj());
+    }
+
 
   private:
     friend class Mapper<T>;

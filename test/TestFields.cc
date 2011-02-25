@@ -461,7 +461,7 @@ struct UnsignedStuff {
   unsigned long long b;
 };
 
-/*
+
 TEST(Unsigned_encode_decode) {
   // This tests string field encoding/decoding with no exceptions.
   Mapper<UnsignedStuff> mapper;
@@ -539,9 +539,8 @@ TEST(Unsigned_mistyped_field_2) {
   mongo::BSONObj bson = deficient_mapper.to_bson(stuff1);
 
   Mapper<UnsignedStuff> mapper;
-  mapper.add_field("b", &UnsignedStuff::a);
+  mapper.add_field("b", &UnsignedStuff::b);
 
   CHECK_THROW(mapper.from_bson(bson), bson_error);
 }
-*/
 

@@ -317,71 +317,29 @@ namespace mongoxx {
       return MemberFxnsIndirect<U, GET_CONST, SET>(get_const, set);
     }
 
-    template <typename U>
-    class BasicCoder {
-    public:
-      U const& encode(U const& u) const { return u; }
-      void decode(U &u, mongo::BSONElement const& bson) const {
-	decode_element(u, bson);
-      }
-    };
-
-    template <typename U>
-    class MapperCoder {
-    public:
-      MapperCoder(Mapper<U> const& mapper) : m_mapper(mapper) { }
-
-      mongo::BSONObj encode(U const& u) const { return m_mapper.to_bson(u); }
-      void decode(U &u, mongo::BSONElement const& bson) const {
-	_check(bson, mongo::Object, "object");
-	m_mapper.from_bson(bson.Obj(), u);
-      }
-
-    private:
-      Mapper<U> m_mapper;
-    };
-
-    template <typename U>
-    static MapperCoder<U> mapper_coder(Mapper<U> const& mapper) {
-      return MapperCoder<U>(mapper);
-    }
-
-    template <typename U, typename Alloc, typename CODER>
-    class ArrayCoder {
-    public:
-      ArrayCoder(CODER coder) : m_coder(coder) { }
-
-      mongo::BSONArray encode(std::vector<U, Alloc> const& v) const {
-	mongo::BSONArrayBuilder arrbuilder;
-	for (typename std::vector<U, Alloc>::const_iterator i = v.begin(); i != v.end(); ++i) {
-	  arrbuilder.append(m_coder.encode(*i));
-	}
-	return arrbuilder.arr();
-      }
-
-      void decode(std::vector<U, Alloc> &v, mongo::BSONElement const &bson) const {
-	v.clear();
-	_check(bson, mongo::Array, "array");
-	std::vector<mongo::BSONElement> elements = bson.Array();
-	for (std::vector<mongo::BSONElement>::const_iterator i = elements.begin();
-	     i != elements.end(); ++i) {
-	  U u;
-	  m_coder.decode(u, *i);
-	  v.push_back(u);
-	}
-      }
-
-    private:
-      CODER m_coder;
-    };
-
-    template <typename U, typename Alloc, typename CODER>
-    static ArrayCoder<U, Alloc, CODER> array_coder(CODER coder) {
-      return ArrayCoder<U, Alloc, CODER>(coder);
-    }
-
     std::vector<Member*> m_fields;
   };
+
+  template <typename U>
+  class MapperCoder {
+  public:
+    MapperCoder(Mapper<U> const& mapper) : m_mapper(mapper) { }
+
+    mongo::BSONObj encode(U const& u) const { return m_mapper.to_bson(u); }
+    void decode(U &u, mongo::BSONElement const& bson) const {
+      _check(bson, mongo::Object, "object");
+      m_mapper.from_bson(bson.Obj(), u);
+    }
+
+  private:
+    Mapper<U> m_mapper;
+  };
+
+  template <typename U>
+  static MapperCoder<U> mapper_coder(Mapper<U> const& mapper) {
+    return MapperCoder<U>(mapper);
+  }
+
 };
 
 #endif

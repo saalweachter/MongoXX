@@ -159,6 +159,71 @@ namespace mongoxx {
     return t;
   }
 
+
+
+  template <typename U>
+  class BasicCoder {
+  public:
+    U const& encode(U const& u) const { return u; }
+    void decode(U &u, mongo::BSONElement const& bson) const {
+      decode_element(u, bson);
+    }
+  };
+
+  template <>
+  class BasicCoder<unsigned int> {
+  public:
+    int encode(unsigned int u) const { return u; }
+    void decode(unsigned int &u, mongo::BSONElement const& bson) const {
+      decode_element(u, bson);
+    }
+  };
+
+  template <>
+  class BasicCoder<unsigned long long> {
+  public:
+    long long encode(unsigned long long u) const { return u; }
+    void decode(unsigned long long &u, mongo::BSONElement const& bson) const {
+      decode_element(u, bson);
+    }
+  };
+
+
+  template <typename U, typename Alloc, typename CODER>
+  class ArrayCoder {
+  public:
+    ArrayCoder(CODER coder) : m_coder(coder) { }
+
+    mongo::BSONArray encode(std::vector<U, Alloc> const& v) const {
+      mongo::BSONArrayBuilder arrbuilder;
+      for (typename std::vector<U, Alloc>::const_iterator i = v.begin(); i != v.end(); ++i) {
+	arrbuilder.append(m_coder.encode(*i));
+      }
+      return arrbuilder.arr();
+    }
+
+    void decode(std::vector<U, Alloc> &v, mongo::BSONElement const &bson) const {
+      v.clear();
+      _check(bson, mongo::Array, "array");
+      std::vector<mongo::BSONElement> elements = bson.Array();
+      for (std::vector<mongo::BSONElement>::const_iterator i = elements.begin();
+	   i != elements.end(); ++i) {
+	U u;
+	m_coder.decode(u, *i);
+	v.push_back(u);
+      }
+    }
+
+  private:
+    CODER m_coder;
+  };
+
+  template <typename U, typename Alloc, typename CODER>
+  static ArrayCoder<U, Alloc, CODER> array_coder(CODER coder) {
+    return ArrayCoder<U, Alloc, CODER>(coder);
+  }
+
+
 };
 
 #endif

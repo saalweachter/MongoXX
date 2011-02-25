@@ -21,6 +21,7 @@ namespace mongoxx {
   public:
 
     Mapper() { }
+
     ~Mapper() {
       for (typename std::vector<Member*>::iterator i = m_fields.begin(); i != m_fields.end(); ++i) {
 	delete *i;
@@ -47,38 +48,49 @@ namespace mongoxx {
       return *this;
     }
 
+
+
     template <typename U>
     Mapper& add_field(std::string const& name, U T::*field) {
-      m_fields.push_back(new DirectMember<U>(name, field));
+      m_fields.push_back(direct_member<U>(name,
+					  member_direct(field),
+					  BasicCoder<U>()));
       return *this;
     }
 
     template <typename U, typename Alloc>
     Mapper& add_field(std::string const& name, std::vector<U, Alloc> T::*field, Mapper<U> const& mapper) {
-      m_fields.push_back(new MappedArrayDirectMember<U, Alloc>(name, field, mapper));
+      m_fields.push_back(direct_member<U>(name, member_direct(field),
+					  array_coder<U, Alloc>(mapper_coder(mapper))));
       return *this;
     }
 
     template <typename U>
     Mapper& add_field(std::string const& name,
 		      U const& (T::*getter)() const, void (T::*setter)(U const&)) {
-      m_fields.push_back(new IndirectMember<U>(name, getter, setter));
+      m_fields.push_back(indirect_member<U>(name,
+					    member_fxns_indirect<U const&>(getter, setter),
+					    BasicCoder<U>()));
       return *this;
     }
 
     template <typename U>
     Mapper& add_field(std::string const& name,
 		      U (T::*getter)() const, void (T::*setter)(U)) {
-      m_fields.push_back(new IndirectMember2<U>(name, getter, setter));
+      m_fields.push_back(indirect_member<U>(name,
+					    member_fxns_indirect<U>(getter,
+								    setter),
+					    BasicCoder<U>()));
       return *this;
     }
 
     template <typename U>
-    std::string const& lookup_field(U T::*field) const {
+    std::string const& lookup_field(U T::*member) const {
       for (typename std::vector<Member*>::const_iterator i = m_fields.begin(); i != m_fields.end(); ++i) {
-	if (DirectMember<U> const* f = dynamic_cast<DirectMember<U> const*>(*i)) {
-	  if (f->field() == field)
-	    return f->name();
+	if (TypedMember<U> const* typed = dynamic_cast<TypedMember<U>*>(*i)) {
+	  if (typed->matches(member)) {
+	    return typed->name();
+	  }
 	}
       }
       throw std::invalid_argument("Attempted to lookup an unmapped field.");
@@ -87,12 +99,25 @@ namespace mongoxx {
     template <typename U>
     std::string const& lookup_field(U const& (T::*getter)()) const {
       for (typename std::vector<Member*>::const_iterator i = m_fields.begin(); i != m_fields.end(); ++i) {
-	if (IndirectMember<U> const* f = dynamic_cast<IndirectMember<U> const*>(*i)) {
-	  if (f->getter() == getter)
-	    return f->name();
-	} 
+	if (TypedMember<U> const* typed = dynamic_cast<TypedMember<U>*>(*i)) {
+	  if (typed->matches(getter)) {
+	    return typed->name();
+	  }
+	}
       }
-      throw std::invalid_argument("Attempted to lookup an unmapped getter.");
+      throw std::invalid_argument("Attempted to lookup an unmapped field.");
+    }
+
+    template <typename U>
+    std::string const& lookup_field(U (T::*getter)()) const {
+      for (typename std::vector<Member*>::const_iterator i = m_fields.begin(); i != m_fields.end(); ++i) {
+	if (TypedMember<U> const* typed = dynamic_cast<TypedMember<U>*>(*i)) {
+	  if (typed->matches(getter)) {
+	    return typed->name();
+	  }
+	}
+      }
+      throw std::invalid_argument("Attempted to lookup an unmapped field.");
     }
 
     std::string to_json(T const& t) const {
@@ -134,133 +159,226 @@ namespace mongoxx {
   private:
     class Member {
     public:
-      Member(std::string const& name) : m_name(name) { }
       virtual ~Member() { }
       virtual Member* clone() const = 0;
 
-      std::string const& name() const { return m_name; }
+      virtual std::string const& name() const = 0;
       virtual void to_bson(T const&, mongo::BSONObjBuilder&) const = 0;
       virtual void from_bson(mongo::BSONObj const&, T &t) const = 0;
-
-    private:
-      std::string m_name;
     };
 
     template <typename U>
-    class DirectMember : public Member {
+    class TypedMember : public Member {
     public:
-      DirectMember(std::string const& name, U T::*field)
-	: Member(name), m_field(field) { }
+      virtual ~TypedMember() { }
 
-      Member* clone() const {
-	return new DirectMember(this->name(), field());
-      }
-
-      U T::* field() const { return m_field; }
-      void to_bson(T const& t, mongo::BSONObjBuilder &builder) const {
-	builder.append(this->name(), t.*m_field);
-      }
-      void from_bson(mongo::BSONObj const &bson, T &t) const {
-	t.*m_field = decode_field<U>(bson, this->name());
-      }
-
-    private:
-      U T::*m_field;
+      virtual bool matches(U T::*) const = 0;
+      virtual bool matches(U (T::*)()) const = 0;
+      virtual bool matches(U const& (T::*)()) const = 0;
     };
 
-    template <typename U, typename Alloc>
-    class MappedArrayDirectMember : public Member {
+    template <typename U, typename ACCESSOR, typename CODER>
+    class DirectMember : public TypedMember<U> {
     public:
-      MappedArrayDirectMember(std::string const& name, std::vector<U, Alloc> T::*field, Mapper<U> const& mapper)
-	: Member(name), m_field(field), m_mapper(mapper) { }
+      DirectMember(std::string const& name, ACCESSOR accessor, CODER coder)
+	: m_name(name), m_accessor(accessor), m_coder(coder) { }
 
-      Member* clone() const {
-	return new MappedArrayDirectMember(this->name(), field(), mapper());
-      }
+      DirectMember* clone() const { return new DirectMember(*this); }
 
-      std::vector<U, Alloc> T::* field() const { return m_field; }
-      Mapper<U> const& mapper() const { return m_mapper; }
+      bool matches(U T::*m) const { return m_accessor.matches(m); }
+      bool matches(U (T::*m)()) const { return m_accessor.matches(m); }
+      bool matches(U const& (T::*m)()) const { return m_accessor.matches(m); }
+
+      std::string const& name() const { return m_name; }
       void to_bson(T const& t, mongo::BSONObjBuilder &builder) const {
-	mongo::BSONArrayBuilder arrbuilder;
-	std::vector<U, Alloc> const& v = t.*m_field;
-	for (typename std::vector<U, Alloc>::const_iterator i = v.begin(); i != v.end(); ++i) {
-	  arrbuilder.append(m_mapper.to_bson(*i));
-	}
-	builder.append(this->name(), arrbuilder.arr());
+	builder.append(name(), m_coder.encode(m_accessor.get_const(t)));
       }
-      void from_bson(mongo::BSONObj const &bson, T &t) const {
-	(t.*m_field).clear();
-	if (not bson.hasField(this->name().c_str())) {
-	  throw bson_error("Member '" + this->name() + "' is not in the BSON object.");
+      void from_bson(mongo::BSONObj const& bson, T &t) const {
+	if (not bson.hasField(m_name.c_str())) {
+	  throw bson_error("Field '" + m_name + "' is not in the BSON object.");
 	}
-	mongo::BSONElement element = bson.getField(this->name());
-	_check(element, mongo::Array, "array");
-	std::vector<mongo::BSONElement> elements = element.Array();
-	for (std::vector<mongo::BSONElement>::const_iterator i = elements.begin();
-	     i != elements.end(); ++i) {
-	  (t.*m_field).push_back(m_mapper.from_bson(i->Obj()));
-	}
+	mongo::BSONElement element = bson.getField(m_name.c_str());
+	m_coder.decode(m_accessor.get(t), element);
       }
 
     private:
-      std::vector<U, Alloc> T::*m_field;
+      std::string m_name;
+      ACCESSOR m_accessor;
+      CODER m_coder;
+    };
+
+    template <typename U, typename ACCESSOR, typename CODER>
+    static DirectMember<U, ACCESSOR, CODER>*
+    direct_member(std::string const& name, ACCESSOR accessor, CODER coder) {
+      return new DirectMember<U, ACCESSOR, CODER>(name, accessor, coder);
+    }
+
+    template <typename U, typename ACCESSOR, typename CODER>
+    class IndirectMember : public Member {
+    public:
+      IndirectMember(std::string const& name, ACCESSOR accessor, CODER coder)
+	: m_name(name), m_accessor(accessor), m_coder(coder) { }
+
+      IndirectMember* clone() const { return new IndirectMember(*this); }
+
+      bool matches(U T::*m) const { return m_accessor.matches(m); }
+      bool matches(U (T::*m)()) const { return m_accessor.matches(m); }
+      bool matches(U const& (T::*m)()) const { return m_accessor.matches(m); }
+
+      std::string const& name() const { return m_name; }
+      void to_bson(T const& t, mongo::BSONObjBuilder &builder) const {
+	builder.append(name(), m_coder.encode(m_accessor.get_const(t)));
+      }
+      void from_bson(mongo::BSONObj const& bson, T &t) const {
+	if (not bson.hasField(this->name().c_str())) {
+	  throw bson_error("Field '" + this->name() + "' is not in the BSON object.");
+	}
+	mongo::BSONElement element = bson.getField(this->name().c_str());
+	U u;
+	m_coder.decode(u, element);
+	m_accessor.set(t, u);
+      }
+
+    private:
+      std::string m_name;
+      ACCESSOR m_accessor;
+      CODER m_coder;
+    };
+
+    template <typename U, typename ACCESSOR, typename CODER>
+    static IndirectMember<U, ACCESSOR, CODER>*
+    indirect_member(std::string const& name, ACCESSOR accessor, CODER coder) {
+      return new IndirectMember<U, ACCESSOR, CODER>(name, accessor, coder);
+    }
+
+    template <typename U>
+    class MemberDirect {
+    public:
+      MemberDirect(U T::*member) : m_member(member) { }
+
+      bool matches(U T::*m) const { return m == m_member; }
+      template <typename K> bool matches(K) const { return false; }
+
+      U const& get_const(T const& t) const { return t.*m_member; }
+      U& get(T &t) const { return t.*m_member; }
+
+    private:
+      U T::*m_member;
+    };
+
+    template <typename U>
+    static MemberDirect<U> member_direct(U T::*member) {
+      return MemberDirect<U>(member);
+    }
+
+    template <typename U, typename GET_CONST, typename GET>
+    class MemberFxnsDirect {
+    public:
+      MemberFxnsDirect(GET_CONST get_const, GET get)
+	: m_get_const(get_const), m_get(get) { }
+
+      bool matches(GET_CONST m) const { return m == m_get_const; }
+      template <typename K> bool matches(K) const { return false; }
+
+      U const& get_const(T const& t) const { return (t.*m_get_const)(); }
+      U& get(T &t) const { return (t.*m_get)(); }
+
+    private:
+      GET_CONST m_get_const;
+      GET m_get;
+    };
+
+    template <typename U, typename GET_CONST, typename GET>
+    static MemberFxnsDirect<U, GET_CONST, GET>
+    member_fxns_direct(GET_CONST get_const, GET get) {
+      return MemberFxnsDirect<U, GET_CONST, GET>(get_const, get);
+    }
+
+    template <typename U, typename GET_CONST, typename SET>
+    class MemberFxnsIndirect {
+    public:
+      MemberFxnsIndirect(GET_CONST get_const, SET set)
+	: m_get_const(get_const), m_set(set) { }
+
+      bool matches(GET_CONST m) const { return m == m_get_const; }
+      template <typename K> bool matches(K) const { return false; }
+
+      U get_const(T const& t) const { return (t.*m_get_const)(); }
+      void set(T &t, U u) const { (t.*m_set)(u); }
+
+    private:
+      GET_CONST m_get_const;
+      SET m_set;
+    };
+
+    template <typename U, typename GET_CONST, typename SET>
+    static MemberFxnsIndirect<U, GET_CONST, SET>
+    member_fxns_indirect(GET_CONST get_const, SET set) {
+      return MemberFxnsIndirect<U, GET_CONST, SET>(get_const, set);
+    }
+
+    template <typename U>
+    class BasicCoder {
+    public:
+      U const& encode(U const& u) const { return u; }
+      void decode(U &u, mongo::BSONElement const& bson) const {
+	decode_element(u, bson);
+      }
+    };
+
+    template <typename U>
+    class MapperCoder {
+    public:
+      MapperCoder(Mapper<U> const& mapper) : m_mapper(mapper) { }
+
+      mongo::BSONObj encode(U const& u) const { return m_mapper.to_bson(u); }
+      void decode(U &u, mongo::BSONElement const& bson) const {
+	_check(bson, mongo::Object, "object");
+	m_mapper.from_bson(bson.Obj(), u);
+      }
+
+    private:
       Mapper<U> m_mapper;
     };
 
     template <typename U>
-    class IndirectMember : public Member {
+    static MapperCoder<U> mapper_coder(Mapper<U> const& mapper) {
+      return MapperCoder<U>(mapper);
+    }
+
+    template <typename U, typename Alloc, typename CODER>
+    class ArrayCoder {
     public:
-      typedef U const& (T::*GETTER)() const;
-      typedef void (T::*SETTER)(U const&);
+      ArrayCoder(CODER coder) : m_coder(coder) { }
 
-      IndirectMember(std::string const& name, GETTER getter, SETTER setter)
-	: Member(name), m_getter(getter), m_setter(setter) { }
-
-      Member* clone() const {
-	return new IndirectMember(this->name(), getter(), setter());
+      mongo::BSONArray encode(std::vector<U, Alloc> const& v) const {
+	mongo::BSONArrayBuilder arrbuilder;
+	for (typename std::vector<U, Alloc>::const_iterator i = v.begin(); i != v.end(); ++i) {
+	  arrbuilder.append(m_coder.encode(*i));
+	}
+	return arrbuilder.arr();
       }
 
-      GETTER getter() const { return m_getter; }
-      SETTER setter() const { return m_setter; }
-      void to_bson(T const& t, mongo::BSONObjBuilder &builder) const {
-	builder.append(this->name(), (t.*m_getter)());
-      }
-      void from_bson(mongo::BSONObj const &bson, T &t) const {
-	(t.*m_setter)(decode_field<U>(bson, this->name()));
+      void decode(std::vector<U, Alloc> &v, mongo::BSONElement const &bson) const {
+	v.clear();
+	_check(bson, mongo::Array, "array");
+	std::vector<mongo::BSONElement> elements = bson.Array();
+	for (std::vector<mongo::BSONElement>::const_iterator i = elements.begin();
+	     i != elements.end(); ++i) {
+	  U u;
+	  m_coder.decode(u, *i);
+	  v.push_back(u);
+	}
       }
 
     private:
-      GETTER m_getter;
-      SETTER m_setter;
+      CODER m_coder;
     };
 
-    template <typename U>
-    class IndirectMember2 : public Member {
-    public:
-      typedef U (T::*GETTER)() const;
-      typedef void (T::*SETTER)(U);
-
-      IndirectMember2(std::string const& name, GETTER getter, SETTER setter)
-	: Member(name), m_getter(getter), m_setter(setter) { }
-
-      Member* clone() const {
-	return new IndirectMember2(this->name(), getter(), setter());
-      }
-
-      GETTER getter() const { return m_getter; }
-      SETTER setter() const { return m_setter; }
-      void to_bson(T const& t, mongo::BSONObjBuilder &builder) const {
-	builder.append(this->name(), (t.*m_getter)());
-      }
-      void from_bson(mongo::BSONObj const &bson, T &t) const {
-	(t.*m_setter)(decode_field<U>(bson, this->name()));
-      }
-
-    private:
-      GETTER m_getter;
-      SETTER m_setter;
-    };
-
+    template <typename U, typename Alloc, typename CODER>
+    static ArrayCoder<U, Alloc, CODER> array_coder(CODER coder) {
+      return ArrayCoder<U, Alloc, CODER>(coder);
+    }
 
     std::vector<Member*> m_fields;
   };

@@ -22,7 +22,7 @@ namespace mongoxx {
 
   
   inline void _check(mongo::BSONElement const& element,
-	      mongo::BSONType type, std::string const& type_name) {
+		     mongo::BSONType type, std::string const& type_name) {
     if (element.type() != type) {
       throw bson_error("BSONElement is not of " + type_name + " type.");
     }

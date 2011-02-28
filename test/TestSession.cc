@@ -283,20 +283,28 @@ TEST(Session_query_insert_overwrite) {
 
   session.query(table).remove_all();
 
+  CHECK_EQUAL(0U, session.query(table).all().size());
+
   Inserter<PersonID> inserter = session.inserter(table);
   PersonID person1 = { "Jack", "Saalweachter", 1 };
-  inserter.insert(person1);
+  inserter.upsert(person1);
   PersonID person2 = { "John", "Saalweachter", 2 };
-  inserter.insert(person2);
+  inserter.upsert(person2);
+  PersonID person3 = { "John", "Saalweachter", 42 };
+  inserter.upsert(person3);
 
+  CHECK_EQUAL(3U, session.query(table).all().size());
   CHECK_EQUAL("Jack", session.query(table).filter(table[&PersonID::id] == 1).one().first_name);
   CHECK_EQUAL("John", session.query(table).filter(table[&PersonID::id] == 2).one().first_name);
+  CHECK_EQUAL("John", session.query(table).filter(table[&PersonID::id] == 42).one().first_name);
 
   person2.first_name = "Sal";
-  inserter.insert(person2);
+  inserter.upsert(person2);
 
+  CHECK_EQUAL(3U, session.query(table).all().size());
   CHECK_EQUAL("Jack", session.query(table).filter(table[&PersonID::id] == 1).one().first_name);
   CHECK_EQUAL("Sal", session.query(table).filter(table[&PersonID::id] == 2).one().first_name);
+  CHECK_EQUAL("John", session.query(table).filter(table[&PersonID::id] == 42).one().first_name);
 
 }
 

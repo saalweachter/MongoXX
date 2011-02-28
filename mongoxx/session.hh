@@ -81,6 +81,10 @@ namespace mongoxx {
     void execute_update(std::string const& collection, mongo::Query const& query, mongo::BSONObj const& update) {
       m_connection->update(collection, query, update);
     }
+
+    void execute_upsert(std::string const& collection, mongo::Query const& query, mongo::BSONObj const& update) {
+      m_connection->update(collection, query, update, true /* upsert */);
+    }
  
   private:
     std::string m_host;
@@ -98,6 +102,28 @@ namespace mongoxx {
       mongo::BSONObj object;
       m_mapper->to_bson(t, object);
       m_session->insert(m_collection, object);
+      return *this;
+    }
+
+    Inserter& upsert(T const& t) {
+      mongo::BSONObj object;
+      m_mapper->to_bson(t, object);
+      // Unfortunately, we now need to split apart the 'id' and the rest.
+      mongo::BSONObjBuilder filter;
+      mongo::BSONObjBuilder update;
+      std::set<std::string> fields;
+      object.getFieldNames(fields);
+      for (std::set<std::string>::const_iterator i = fields.begin(); i != fields.end(); ++i) {
+	if (*i == "_id") {
+	  filter.append(object[*i]);
+	} else {
+	  update.append(object[*i]);
+	}
+      }
+      mongo::BSONObjBuilder update2;
+      update2.append("$set", update.obj());
+      m_session->execute_upsert(m_collection,
+				mongo::Query(filter.obj()), update2.obj());
       return *this;
     }
 

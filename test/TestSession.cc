@@ -239,3 +239,64 @@ TEST(Session_query_remove_one) {
 }
 
 
+struct PersonID {
+  std::string first_name;
+  std::string last_name;
+  int id;
+};
+
+TEST(Session_query_update) {
+  Session session("localhost");
+
+  Table<PersonID> table("test.person_query_update");
+  table.add_field("_id", &PersonID::id);
+  table.add_field("first_name", &PersonID::first_name);
+  table.add_field("last_name", &PersonID::last_name);
+
+  session.query(table).remove_all();
+
+  Inserter<PersonID> inserter = session.inserter(table);
+  PersonID person1 = { "Jack", "Saalweachter", 1 };
+  inserter.insert(person1);
+  PersonID person2 = { "John", "Saalweachter", 2 };
+  inserter.insert(person2);
+
+  CHECK_EQUAL("Jack", session.query(table).filter(table[&PersonID::id] == 1).one().first_name);
+  CHECK_EQUAL("John", session.query(table).filter(table[&PersonID::id] == 2).one().first_name);
+
+  person2.first_name = "Sal";
+  session.query(table).filter(table[&PersonID::id] == 2).update(person2);
+
+  CHECK_EQUAL("Jack", session.query(table).filter(table[&PersonID::id] == 1).one().first_name);
+  CHECK_EQUAL("Sal", session.query(table).filter(table[&PersonID::id] == 2).one().first_name);
+
+}
+
+
+TEST(Session_query_insert_overwrite) {
+  Session session("localhost");
+
+  Table<PersonID> table("test.person_query_insert_overwrite");
+  table.add_field("_id", &PersonID::id);
+  table.add_field("first_name", &PersonID::first_name);
+  table.add_field("last_name", &PersonID::last_name);
+
+  session.query(table).remove_all();
+
+  Inserter<PersonID> inserter = session.inserter(table);
+  PersonID person1 = { "Jack", "Saalweachter", 1 };
+  inserter.insert(person1);
+  PersonID person2 = { "John", "Saalweachter", 2 };
+  inserter.insert(person2);
+
+  CHECK_EQUAL("Jack", session.query(table).filter(table[&PersonID::id] == 1).one().first_name);
+  CHECK_EQUAL("John", session.query(table).filter(table[&PersonID::id] == 2).one().first_name);
+
+  person2.first_name = "Sal";
+  inserter.insert(person2);
+
+  CHECK_EQUAL("Jack", session.query(table).filter(table[&PersonID::id] == 1).one().first_name);
+  CHECK_EQUAL("Sal", session.query(table).filter(table[&PersonID::id] == 2).one().first_name);
+
+}
+

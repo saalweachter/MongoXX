@@ -118,7 +118,7 @@ namespace mongoxx {
     }
 
     void update(T const& t) const {
-      return update(Update("$set", m_mapper->to_bson(t)));
+      return update(Update("$set", remove_id(m_mapper->to_bson(t))));
     }
 
     Query skip(unsigned int N) const {
@@ -179,6 +179,18 @@ namespace mongoxx {
 	query.sort(m_sort_by, m_sort_direction);
       }
       return query;
+    }
+
+    mongo::BSONObj remove_id(mongo::BSONObj const& base) const {
+      mongo::BSONObjBuilder builder;
+      mongo::BSONObj filter = m_filters.to_bson();
+      std::set<std::string> fields;
+      base.getFieldNames(fields);
+      for (std::set<std::string>::const_iterator i = fields.begin(); i != fields.end(); ++i) {
+	if (*i == "_id") continue;
+	builder.append(base[*i]);
+      }
+      return builder.obj();
     }
 
   };
